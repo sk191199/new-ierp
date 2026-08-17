@@ -25,6 +25,8 @@ export interface ApiErrorBody {
   error: ErrorCode | string;
   message: string;
   field?: string;
+  errors?: string[];
+  details?: string[];
 }
 
 export type ApiEnvelope<T> = ApiSuccess<T> | ApiErrorBody;

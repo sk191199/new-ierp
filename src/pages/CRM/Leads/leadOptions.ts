@@ -55,6 +55,11 @@ export const leadFollowUpTypeOptions = ["Call", "Email", "Meeting", "Site Visit"
   label: value,
 }));
 
+export const leadFollowUpStatus = ["Pending", "Completed", "Rescheduled", "Cancelled"].map((value) => ({
+  value,
+  label: value,
+}));
+
 export const leadProjectOptions = ["Implementation", "Expansion", "Upgrade", "Greenfield", "Assessment"].map(
   (value) => ({ value, label: value }),
 );

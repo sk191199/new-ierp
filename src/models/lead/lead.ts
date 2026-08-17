@@ -1,10 +1,34 @@
 import type { LeadStatus } from "@/constants/statuses";
 
+// API INTEGRATION: Typed follow-up attachments returned by the lead-by-id API.
+export interface LeadAttachment {
+  fileName?: string;
+  filePath?: string;
+  contentType?: string;
+  fileSize?: number;
+  createdAt?: string;
+}
+
+// API INTEGRATION: Typed follow-up history returned with a lead detail response.
+export interface LeadFollowUp {
+  id?: string;
+  activityType?: string;
+  followUpDate?: string;
+  nextFollowUpDate?: string;
+  remarks?: string;
+  status?: string;
+  createdAt?: string;
+  createdBy?: string;
+  attachments?: LeadAttachment[];
+}
+
 export interface Lead {
   id: string;
   leadId: string;
+  // API INTEGRATION: Marks rows normalized from backend leadNumber values.
+  isBackendLead?: boolean;
   leadName: string;
-  company: string;
+  companyName: string;
   email: string;
   phone: string;
   leadSource: string;
@@ -21,14 +45,27 @@ export interface Lead {
   annualRevenue?: string;
   address?: string;
   subsidiary?: string;
+  // API INTEGRATION: Retains the backend subsidiary UUID for update requests.
+  subsidiaryId?: string;
   notes?: string;
+  // API INTEGRATION: Additional lead-detail fields preserved for the view page.
+  projectDescription?: string;
+  createdBy?: string;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  version?: number;
+  followUps?: LeadFollowUp[];
+  // The backend does not return leadScore; this distinguishes compatibility
+  // fallback data from a real score so the UI can render an em dash.
+  leadScoreAvailable?: boolean;
   followUpDate?: string;
   followUpType?: string;
+  followUpStatus?: string;
   followUpNotes?: string;
 }
 
 export interface LeadDraft {
-  company: string;
+  companyName: string;
   contactPerson: string;
   phone: string;
   email: string;
@@ -42,10 +79,16 @@ export interface LeadDraft {
   annualRevenue: string;
   address: string;
   subsidiary: string;
+  // API INTEGRATION: Preserves the loaded subsidiary UUID without exposing a new UI field.
+  subsidiaryId?: string;
+  projectDescription: string;
   notes: string;
   followUpDate: string;
+  newFollowUpDate: string;
   followUpType: string;
+  followUpStatus: string;
   followUpNotes: string;
+  followUpFile: File | null;
 }
 
 export const resolveLeadConfidence = (score: number, status: LeadStatus): number =>
@@ -67,7 +110,7 @@ export const resolveAiNextAction = (score: number): string => {
 };
 
 export const emptyLeadDraft = (): LeadDraft => ({
-  company: "",
+  companyName: "",
   contactPerson: "",
   phone: "",
   email: "",
@@ -81,8 +124,12 @@ export const emptyLeadDraft = (): LeadDraft => ({
   annualRevenue: "",
   address: "",
   subsidiary: "",
+  projectDescription: "",
   notes: "",
   followUpDate: "",
+  newFollowUpDate: "",
   followUpType: "",
+  followUpStatus: "",
   followUpNotes: "",
+  followUpFile: null,
 });

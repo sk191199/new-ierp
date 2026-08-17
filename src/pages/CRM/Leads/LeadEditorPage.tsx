@@ -37,7 +37,7 @@ export const LeadEditorPage = ({ mode }: LeadEditorPageProps) => {
       try {
         const lead = await getLead(id);
         setDraft({
-          company: lead.company,
+          companyName: lead.companyName,
           contactPerson: lead.leadName,
           phone: lead.phone,
           email: lead.email,
@@ -51,10 +51,16 @@ export const LeadEditorPage = ({ mode }: LeadEditorPageProps) => {
           annualRevenue: lead.annualRevenue ?? "",
           address: lead.address ?? "",
           subsidiary: lead.subsidiary ?? "",
+          // API INTEGRATION: Preserve backend-only values through the existing edit form.
+          subsidiaryId: lead.subsidiaryId,
+          projectDescription: lead.projectDescription ?? "",
           notes: lead.notes ?? "",
           followUpDate: lead.followUpDate ?? "",
+          newFollowUpDate: "",
           followUpType: lead.followUpType ?? "",
+          followUpStatus: lead.followUpStatus ?? "",
           followUpNotes: lead.followUpNotes ?? "",
+          followUpFile: null,
         });
       } catch (cause) {
         setError(getErrorMessage(cause));

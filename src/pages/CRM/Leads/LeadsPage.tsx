@@ -131,7 +131,7 @@ export const LeadsPage = () => {
     if (!draft) {
       return;
     }
-    if (isBlank(draft.leadName) || isBlank(draft.company) || isBlank(draft.phone) || !isValidEmail(draft.email)) {
+    if (isBlank(draft.leadName) || isBlank(draft.companyName) || isBlank(draft.phone) || !isValidEmail(draft.email)) {
       dispatch(
         toastShown({
           message: "Name, company, phone and a valid email are required.",
@@ -169,9 +169,11 @@ export const LeadsPage = () => {
         header: "Lead ID",
         size: 100,
         minSize: 88,
-        cell: ({ getValue }) => (
+        // API INTEGRATION: Show the normalized backend leadNumber while
+        // retaining the existing generated display format for mock records.
+        cell: ({ row, getValue }) => (
           <Typography variant="body2" sx={{ fontWeight: 800 }}>
-            {formatLeadDisplayId(String(getValue()))}
+            {row.original.isBackendLead ? String(getValue()) : formatLeadDisplayId(String(getValue()))}
           </Typography>
         ),
       },
@@ -194,7 +196,8 @@ export const LeadsPage = () => {
           ),
       },
       {
-        accessorKey: "company",
+        // API INTEGRATION: Use the normalized companyName field from the backend Lead response.
+        accessorKey: "companyName",
         header: "Company",
         size: 148,
         minSize: 96,
@@ -202,8 +205,8 @@ export const LeadsPage = () => {
           editingId === row.original.id && draft ? (
             <InlineTextField
               ariaLabel="Company"
-              value={draft.company}
-              onChange={(value) => patchDraft("company", value)}
+              value={draft.companyName}
+              onChange={(value) => patchDraft("companyName", value)}
             />
           ) : (
             String(getValue())

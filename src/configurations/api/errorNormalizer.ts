@@ -12,6 +12,11 @@ const messageFor = (code: string, fallback?: string): string => {
   return fallback || ERROR_FALLBACK_MESSAGES.INTERNAL_ERROR;
 };
 
+const detailMessage = (body: ApiErrorBody | undefined): string | undefined => {
+  const details = [...(body?.errors ?? []), ...(body?.details ?? [])].filter(Boolean);
+  return details.length > 0 ? `${body?.message ?? "Request failed."} ${details.join(" ")}` : body?.message;
+};
+
 export const normalizeError = (error: unknown): NormalizedApiError => {
   if (error instanceof NormalizedApiError) {
     return error;
@@ -21,7 +26,7 @@ export const normalizeError = (error: unknown): NormalizedApiError => {
     const status = error.response?.status ?? 0;
     const body = error.response?.data as ApiErrorBody | undefined;
     const code = body?.error ?? (status === 401 ? ERROR_CODES.UNAUTHORIZED : ERROR_CODES.INTERNAL_ERROR);
-    return new NormalizedApiError(code, messageFor(code, body?.message), status, body?.field);
+    return new NormalizedApiError(code, messageFor(code, detailMessage(body)), status, body?.field);
   }
 
   if (error instanceof Error) {

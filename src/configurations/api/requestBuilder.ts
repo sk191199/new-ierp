@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { ERROR_CODES } from "@/constants/errorCodes";
 import { NormalizedApiError, type ApiErrorBody } from "@/models/common/api";
-import { API_BASE_URL, API_ENDPOINTS } from "./config";
+import { API_BASE_URL, API_ENDPOINTS, DEV_TENANT_ID, DEV_USER_ID, USE_DEV_HEADERS } from "./config";
 import { normalizeError } from "./errorNormalizer";
 
 type TokenReader = () => string | null;
@@ -31,7 +31,8 @@ export const bindAuthSession = (bindings: {
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  // withCredentials: true,
+  withCredentials: false,
   timeout: 20_000,
   headers: {
     "Content-Type": "application/json",
@@ -40,7 +41,28 @@ export const http = axios.create({
 
 http.interceptors.request.use((config) => {
   const token = readAccessToken();
-  if (token) {
+  // API contract: a request explicitly carrying the development identity headers must remain JWT-free.
+  const usesDevelopmentHeaders =
+    config.headers.has("X-Tenant-Id") || config.headers.has("X-User-Id");
+
+  if (USE_DEV_HEADERS || usesDevelopmentHeaders) {
+    // TEMPORARY DEVELOPMENT AUTH: Backend JWT issuing is not implemented yet.
+    // These headers replace Authorization until production JWT authentication is enabled.
+    if (USE_DEV_HEADERS) {
+      config.headers["X-Tenant-Id"] = DEV_TENANT_ID;
+      config.headers["X-User-Id"] = DEV_USER_ID;
+    }
+    // API contract: development calls must not include the mock access token.
+    config.headers.delete("Authorization");
+    // API diagnostics: log header presence without exposing tokens or other credentials.
+    console.log("API request headers", {
+      method: config.method?.toUpperCase(),
+      url: `${config.baseURL ?? ""}${config.url ?? ""}`,
+      tenantHeaderPresent: Boolean(config.headers["X-Tenant-Id"]),
+      userHeaderPresent: Boolean(config.headers["X-User-Id"]),
+      authorizationHeaderPresent: config.headers.has("Authorization"),
+    });
+  } else if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -81,11 +103,41 @@ const refreshAccessToken = async (): Promise<string> => {
 };
 
 http.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError<ApiErrorBody>) => {
-    const original = error.config as RetryableConfig | undefined;
+  (response) => {
+    // TEMPORARY API DEBUG: Remove after API integration is confirmed.
+    console.log("TEMPORARY API DEBUG: Axios response status", response.status);
+    console.log("TEMPORARY API DEBUG: Axios response headers", response.headers);
 
-    if (!original || !isAuthFailure(error) || original._retry || isRefreshRequest(original.url)) {
+    console.log(
+      "TEMPORARY API DEBUG: correlation/request ID",
+      response.headers["x-correlation-id"] ?? response.headers["x-request-id"] ?? null,
+    );
+    return response;
+  },
+  async (error: AxiosError<ApiErrorBody>) => {
+    // TEMPORARY API DEBUG: Remove after API integration is confirmed.
+    console.error("TEMPORARY API DEBUG: Axios error status", error.response?.status);
+    console.error("TEMPORARY API DEBUG: Axios error response data", error.response?.data);
+    console.error("TEMPORARY API DEBUG: Axios error response headers", error.response?.headers);
+    console.error(
+      "TEMPORARY API DEBUG: correlation/request ID",
+      error.response?.headers["x-correlation-id"] ??
+        error.response?.headers["x-request-id"] ??
+        null,
+    );
+    const original = error.config as RetryableConfig | undefined;
+    // API contract: retries for development-header requests must not introduce an Authorization header.
+    const usesDevelopmentHeaders =
+      original?.headers.has("X-Tenant-Id") || original?.headers.has("X-User-Id");
+
+    if (
+      !original ||
+      USE_DEV_HEADERS ||
+      usesDevelopmentHeaders ||
+      !isAuthFailure(error) ||
+      original._retry ||
+      isRefreshRequest(original.url)
+    ) {
       return Promise.reject(normalizeError(error));
     }
 

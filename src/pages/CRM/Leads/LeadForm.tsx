@@ -1,15 +1,26 @@
-import { Stack } from "@mui/material";
+import { Stack, TextField } from "@mui/material";
 import { useMemo, useState } from "react";
-import { CreatableSelectField, FieldGrid, SelectField, TextFieldControl } from "@/components/forms/fields";
+
+import {
+  CreatableSelectField,
+  FieldGrid,
+  SelectField,
+  TextFieldControl,
+} from "@/components/forms/fields";
+
 import { FormSection } from "@/components/forms/FormSection";
+
 import type { LeadStatus } from "@/constants/statuses";
 import type { LeadDraft } from "@/models/lead/lead";
+
 import { isBlank, isValidEmail } from "@/utils/validators/required";
+
 import {
   addCustomIndustry,
   getLeadIndustryOptions,
   leadAssigneeOptions,
   leadFollowUpTypeOptions,
+  leadFollowUpStatus,
   leadProjectOptions,
   leadRevenueOptions,
   leadSizeOptions,
@@ -29,19 +40,58 @@ interface LeadFormProps {
 
 export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProps) => {
   const [attempted, setAttempted] = useState(false);
+
   const [industryOptions, setIndustryOptions] = useState(getLeadIndustryOptions);
 
   const errors = useMemo(() => {
     const next: Partial<Record<keyof LeadDraft, string>> = {};
-    if (isBlank(value.company)) next.company = "Company name is required.";
-    if (isBlank(value.contactPerson)) next.contactPerson = "Contact person is required.";
-    if (isBlank(value.phone)) next.phone = "Phone number is required.";
-    if (isBlank(value.email) || !isValidEmail(value.email)) next.email = "A valid email is required.";
-    if (isBlank(value.address)) next.address = "Address is required.";
+
+    if (isBlank(value.companyName)) {
+      next.companyName = "Company name is required.";
+    }
+
+    if (isBlank(value.contactPerson)) {
+      next.contactPerson = "Contact person is required.";
+    }
+
+    if (isBlank(value.phone)) {
+      next.phone = "Phone number is required.";
+    }
+
+    if (isBlank(value.email) || !isValidEmail(value.email)) {
+      next.email = "A valid email is required.";
+    }
+
+    if (isBlank(value.address)) {
+      next.address = "Address is required.";
+    }
+
     return next;
   }, [value]);
 
-  const patch = (key: keyof LeadDraft, next: string) => onChange({ ...value, [key]: next });
+  const patch = (key: keyof LeadDraft, next: string) =>
+    onChange({
+      ...value,
+      [key]: next,
+    });
+
+  /**
+   * Current date in YYYY-MM-DD format.
+   *
+   * This uses the browser's local date instead of UTC,
+   * so users in India won't accidentally get yesterday/tomorrow.
+   */
+  const getCurrentDate = () => {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const currentDate = getCurrentDate();
 
   return (
     <Stack
@@ -50,25 +100,32 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
       id={LEAD_FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
+
         if (submitting) {
           return;
         }
+
         setAttempted(true);
+
         if (Object.keys(errors).length === 0) {
           onSubmit();
         }
       }}
     >
+      {/* ============================================================
+          PRIMARY INFORMATION
+          ============================================================ */}
       <FormSection title="Primary Information" description="Capture the essential lead details.">
         <FieldGrid>
           <TextFieldControl
             name="company"
             label="Company Name"
             required
-            value={value.company}
-            onChange={(next) => patch("company", next)}
-            error={attempted ? errors.company : undefined}
+            value={value.companyName}
+            onChange={(next) => patch("companyName", next)}
+            error={attempted ? errors.companyName : undefined}
           />
+
           <TextFieldControl
             name="contactPerson"
             label="Contact Person"
@@ -77,6 +134,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             onChange={(next) => patch("contactPerson", next)}
             error={attempted ? errors.contactPerson : undefined}
           />
+
           <TextFieldControl
             name="phone"
             label="Phone Number"
@@ -86,6 +144,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             onChange={(next) => patch("phone", next)}
             error={attempted ? errors.phone : undefined}
           />
+
           <TextFieldControl
             name="email"
             label="Email"
@@ -95,6 +154,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             onChange={(next) => patch("email", next)}
             error={attempted ? errors.email : undefined}
           />
+
           <CreatableSelectField
             name="industry"
             label="Industry"
@@ -104,10 +164,13 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             createTitle="Add industry"
             onCreateOption={(name) => {
               const created = addCustomIndustry(name);
+
               setIndustryOptions(getLeadIndustryOptions());
+
               patch("industry", created);
             }}
           />
+
           <SelectField
             name="projectType"
             label="Project Type"
@@ -116,6 +179,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             options={leadProjectOptions}
             includeEmpty
           />
+
           <SelectField
             name="leadSource"
             label="Lead Source"
@@ -124,6 +188,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             options={leadSourceOptions}
             includeEmpty
           />
+
           <SelectField
             name="status"
             label="Status"
@@ -131,6 +196,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             onChange={(next) => patch("status", next as LeadStatus)}
             options={leadStatusOptions}
           />
+
           <SelectField
             name="assignedTo"
             label="Assigned To"
@@ -139,6 +205,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             options={leadAssigneeOptions}
             includeEmpty
           />
+
           <TextFieldControl
             name="website"
             label="Website"
@@ -146,6 +213,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             value={value.website}
             onChange={(next) => patch("website", next)}
           />
+
           <SelectField
             name="companySize"
             label="Company Size"
@@ -154,6 +222,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             options={leadSizeOptions}
             includeEmpty
           />
+
           <SelectField
             name="annualRevenue"
             label="Annual Revenue"
@@ -163,6 +232,7 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             includeEmpty
           />
         </FieldGrid>
+
         <TextFieldControl
           name="address"
           label="Address"
@@ -175,6 +245,9 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
         />
       </FormSection>
 
+      {/* ============================================================
+          CLASSIFICATION
+          ============================================================ */}
       <FormSection
         title="Classification"
         description="Map the lead to the correct subsidiary."
@@ -191,12 +264,23 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
         />
       </FormSection>
 
+      {/* ============================================================
+          ADDITIONAL INFORMATION
+          ============================================================ */}
       <FormSection
         title="Additional Information"
         description="Capture context, scope and notes."
         collapsible
         defaultExpanded={false}
       >
+        <TextFieldControl
+          name="projectDescription"
+          label="Project Description"
+          multiline
+          minRows={4}
+          value={value.projectDescription}
+          onChange={(next) => patch("projectDescription", next)}
+        />
         <TextFieldControl
           name="notes"
           label="Notes"
@@ -207,6 +291,9 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
         />
       </FormSection>
 
+      {/* ============================================================
+          FOLLOW-UPS
+          ============================================================ */}
       <FormSection
         title="Follow-ups"
         description="Optional next action for this lead. These fields are not required."
@@ -214,13 +301,44 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
         defaultExpanded={false}
       >
         <FieldGrid>
+          {/* ========================================================
+              1. FOLLOW-UP DATE
+              Automatically shows today's date
+              ======================================================== */}
           <TextFieldControl
             name="followUpDate"
-            label="Next Follow-up Date"
+            label="Follow-up Date"
             type="date"
-            value={value.followUpDate}
+            value={value.followUpDate || currentDate}
             onChange={(next) => patch("followUpDate", next)}
           />
+
+          {/* ========================================================
+              2. NEW FOLLOW-UP DATE
+              ======================================================== */}
+          <TextFieldControl
+            name="newFollowUpDate"
+            label="New Follow-up Date"
+            type="date"
+            value={value.newFollowUpDate}
+            onChange={(next) => patch("newFollowUpDate", next)}
+          />
+
+          {/* ========================================================
+              3. FOLLOW-UP STATUS
+              ======================================================== */}
+          <SelectField
+            name="followUpStatus"
+            label="Follow-up Status"
+            value={value.followUpStatus}
+            onChange={(next) => patch("followUpStatus", next)}
+            options={leadFollowUpStatus}
+            includeEmpty
+          />
+
+          {/* ========================================================
+              4. FOLLOW-UP TYPE
+              ======================================================== */}
           <SelectField
             name="followUpType"
             label="Follow-up Type"
@@ -229,7 +347,40 @@ export const LeadForm = ({ value, submitting, onChange, onSubmit }: LeadFormProp
             options={leadFollowUpTypeOptions}
             includeEmpty
           />
+
+          {/* ========================================================
+              5. FOLLOW-UP FILE
+              ======================================================== */}
+          <TextField
+            fullWidth
+            label="Follow-up File"
+            type="file"
+            slotProps={{
+              input: {
+                inputProps: {
+                  accept: "*/*",
+                },
+              },
+            }}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            onChange={(event) => {
+              const target = event.target as HTMLInputElement;
+
+              const file = target.files?.[0];
+
+              onChange({
+                ...value,
+                followUpFile: file ?? null,
+              });
+            }}
+          />
         </FieldGrid>
+
+        {/* ==========================================================
+            FOLLOW-UP NOTES
+            ========================================================== */}
         <TextFieldControl
           name="followUpNotes"
           label="Follow-up Notes"
