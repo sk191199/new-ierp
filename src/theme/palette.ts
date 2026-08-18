@@ -75,6 +75,7 @@ export const darkPalette: PaletteOptions = {
     input: colorTokens.navy850,
     hover: colorTokens.navy700,
     borderStrong: colorTokens.borderStrong,
+    signoutBtnHover: colorTokens.error,
   },
 };
 
@@ -113,5 +114,6 @@ export const lightPalette: PaletteOptions = {
     input: colorTokens.lightPaper,
     hover: colorTokens.lightHover,
     borderStrong: colorTokens.lightBorderStrong,
+    signoutBtnHover: colorTokens.error,
   },
 };

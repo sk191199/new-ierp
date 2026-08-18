@@ -9,7 +9,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
 import { isBlank } from "@/utils/validators/required";
 import type { MetadataAction, ScreenMetadata } from "@/models/metadata/metadata";
-import { getScreenMetadata } from "./metadataApi";
+import { getScreenMetadata } from "@/configurations/api/metadataApi";
 import { MetadataActionRenderer } from "./MetadataActionRenderer";
 import { MetadataSectionRenderer } from "./MetadataSectionRenderer";
 

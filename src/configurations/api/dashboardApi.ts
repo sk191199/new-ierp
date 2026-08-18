@@ -1,7 +1,6 @@
-import { API_ENDPOINTS, USE_MOCK, http, unwrapData } from "@/configurations/api";
-import { mockLatency } from "@/configurations/api/delay";
+import { API_ENDPOINTS, USE_MOCK, http, unwrapData, mockLatency } from "./api";
 import type { DashboardSnapshot } from "@/models/dashboard/dashboard";
-import { dashboardSnapshot } from "./dashboard.mock";
+import { dashboardSnapshot } from "@/pages/Dashboard/dashboard.mock";
 
 export const getDashboardSnapshot = async (): Promise<DashboardSnapshot> => {
   if (USE_MOCK) {

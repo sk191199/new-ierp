@@ -12,7 +12,7 @@ import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
 import { LEAD_FORM_ID, LeadForm } from "./LeadForm";
-import { createLead, getLead, updateLead } from "./leadsApi";
+import { createLead, getLead, updateLead } from "@/configurations/api/leadsApi";
 
 interface LeadEditorPageProps {
   mode: "create" | "edit";

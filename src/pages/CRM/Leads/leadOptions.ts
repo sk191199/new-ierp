@@ -3,7 +3,7 @@ export const leadSourceOptions = ["Website", "Referral", "LinkedIn", "Campaign",
   label: value,
 }));
 
-export const leadStatusOptions = ["New", "Contacted", "Qualified", "Disqualified"].map((value) => ({
+export const leadStatusOptions = ["New", "Qualified", "Disqualified"].map((value) => ({
   value,
   label: value,
 }));

@@ -54,14 +54,6 @@ http.interceptors.request.use((config) => {
     }
     // API contract: development calls must not include the mock access token.
     config.headers.delete("Authorization");
-    // API diagnostics: log header presence without exposing tokens or other credentials.
-    console.log("API request headers", {
-      method: config.method?.toUpperCase(),
-      url: `${config.baseURL ?? ""}${config.url ?? ""}`,
-      tenantHeaderPresent: Boolean(config.headers["X-Tenant-Id"]),
-      userHeaderPresent: Boolean(config.headers["X-User-Id"]),
-      authorizationHeaderPresent: config.headers.has("Authorization"),
-    });
   } else if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -103,28 +95,8 @@ const refreshAccessToken = async (): Promise<string> => {
 };
 
 http.interceptors.response.use(
-  (response) => {
-    // TEMPORARY API DEBUG: Remove after API integration is confirmed.
-    console.log("TEMPORARY API DEBUG: Axios response status", response.status);
-    console.log("TEMPORARY API DEBUG: Axios response headers", response.headers);
-
-    console.log(
-      "TEMPORARY API DEBUG: correlation/request ID",
-      response.headers["x-correlation-id"] ?? response.headers["x-request-id"] ?? null,
-    );
-    return response;
-  },
+  (response) => response,
   async (error: AxiosError<ApiErrorBody>) => {
-    // TEMPORARY API DEBUG: Remove after API integration is confirmed.
-    console.error("TEMPORARY API DEBUG: Axios error status", error.response?.status);
-    console.error("TEMPORARY API DEBUG: Axios error response data", error.response?.data);
-    console.error("TEMPORARY API DEBUG: Axios error response headers", error.response?.headers);
-    console.error(
-      "TEMPORARY API DEBUG: correlation/request ID",
-      error.response?.headers["x-correlation-id"] ??
-        error.response?.headers["x-request-id"] ??
-        null,
-    );
     const original = error.config as RetryableConfig | undefined;
     // API contract: retries for development-header requests must not introduce an Authorization header.
     const usesDevelopmentHeaders =

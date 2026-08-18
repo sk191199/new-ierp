@@ -1,5 +1,4 @@
-import { API_ENDPOINTS, USE_MOCK, http, unwrapData } from "@/configurations/api";
-import { mockLatency } from "@/configurations/api/delay";
+import { API_ENDPOINTS, USE_MOCK, http, unwrapData, mockLatency } from "./api";
 import { NormalizedApiError } from "@/models/common/api";
 import type { LoginRequest, LoginResponse } from "@/models/auth/auth";
 import { ERROR_CODES } from "@/constants/errorCodes";

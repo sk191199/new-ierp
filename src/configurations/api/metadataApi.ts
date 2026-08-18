@@ -1,5 +1,4 @@
-import { API_ENDPOINTS, USE_MOCK, http, unwrapData } from "@/configurations/api";
-import { mockLatency } from "@/configurations/api/delay";
+import { API_ENDPOINTS, USE_MOCK, http, unwrapData, mockLatency } from "./api";
 import type { CustomFieldDefinition, MetadataField, ScreenMetadata } from "@/models/metadata/metadata";
 import { customerMasterMetadata } from "@/pages/Masters/customers.metadata.mock";
 

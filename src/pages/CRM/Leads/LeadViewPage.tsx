@@ -10,7 +10,7 @@ import { ROUTES } from "@/constants/routes";
 import type { Lead } from "@/models/lead/lead";
 import { formatCompactNumber, formatDate } from "@/utils/formatters";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
-import { getLead } from "./leadsApi";
+import { getLead } from "@/configurations/api/leadsApi";
 
 const stages = ["Lead Capture", "Contact", "Opportunity", "Follow-Up", "Quotation"] as const;
 

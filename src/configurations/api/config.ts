@@ -8,13 +8,8 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 export const USE_MOCK_LEADS = import.meta.env.VITE_USE_MOCK_LEADS !== "false";
 export const USE_DEV_HEADERS = import.meta.env.VITE_USE_DEV_HEADERS !== "false";
 export const DEV_TENANT_ID =
-  import.meta.env.VITE_DEV_TENANT_ID || "11111111-1111-1111-1111-111111111111";
+import.meta.env.VITE_DEV_TENANT_ID || "11111111-1111-1111-1111-111111111111";
 export const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID || "22222222-2222-2222-2222-222222222222";
-
-console.log("API_BASE_URL =", API_BASE_URL);
-console.log("USE_MOCK =", USE_MOCK);
-console.log("USE_MOCK_LEADS =", USE_MOCK_LEADS);
-console.log("USE_DEV_HEADERS =", USE_DEV_HEADERS);
 
 export const API_ENDPOINTS = {
   auth: {

@@ -1,11 +1,11 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Box, Collapse, List, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from "@mui/material";
+import { Box, Collapse, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
-import type { NavigationGroup, NavigationItem } from "./navigationConfig";
+import type { NavigationItem } from "./navigationConfig";
 
 interface SidebarItemProps {
   item: NavigationItem;
@@ -22,15 +22,7 @@ const isPathActive = (pathname: string, path?: string): boolean => {
 export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
   const location = useLocation();
   const { can } = usePermissions();
-  const groups = item.groups
-    ?.map((group) => ({
-      ...group,
-      items: group.items.filter((child) => can(child.permission)),
-    }))
-    .filter((group) => group.items.length > 0);
-  const childItems = (groups ? groups.flatMap((group) => group.items) : item.children)?.filter((child) =>
-    can(child.permission),
-  ) ?? [];
+  const childItems = item.children?.filter((child) => can(child.permission)) ?? [];
   const hasChildren = childItems.length > 0;
   const childActive = childItems.some((child) => isPathActive(location.pathname, child.path));
   const selfActive = isPathActive(location.pathname, item.path);
@@ -54,24 +46,20 @@ export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
             <ListItemIcon sx={iconSx(false)}>
               <item.icon fontSize="small" />
             </ListItemIcon>
-            {!collapsed ? (
-              <>
-                <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} />
-                {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-              </>
-            ) : null}
+            <Box sx={labelVisibilitySx(collapsed)}>
+              <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} />
+            </Box>
+            <Box sx={labelVisibilitySx(collapsed)}>
+              {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            </Box>
           </ListItemButton>
         </Tooltip>
         <Collapse in={open && !collapsed} timeout="auto" unmountOnExit>
-          {groups ? (
-            groups.map((group) => <SidebarGroup key={group.label} group={group} pathname={location.pathname} />)
-          ) : (
-            <List disablePadding>
-              {childItems.map((child) => (
-                <ChildLink key={child.path} label={child.label} path={child.path} pathname={location.pathname} />
-              ))}
-            </List>
-          )}
+          <List disablePadding>
+            {childItems.map((child) => (
+              <ChildLink key={child.path} label={child.label} path={child.path} pathname={location.pathname} />
+            ))}
+          </List>
         </Collapse>
       </Box>
     );
@@ -83,36 +71,13 @@ export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
         <ListItemIcon sx={iconSx(selfActive)}>
           <item.icon fontSize="small" />
         </ListItemIcon>
-        {!collapsed ? <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} /> : null}
+        <Box sx={labelVisibilitySx(collapsed)}>
+          <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} />
+        </Box>
       </ListItemButton>
     </Tooltip>
   );
 };
-
-const SidebarGroup = ({ group, pathname }: { group: NavigationGroup; pathname: string }) => (
-  <Box sx={{ mb: 0.5 }}>
-    <Typography
-      variant="caption"
-      sx={{
-        display: "block",
-        px: 3,
-        pt: 1.25,
-        pb: 0.5,
-        color: "chrome.sidebarMuted",
-        letterSpacing: "0.16em",
-        textTransform: "uppercase",
-        opacity: 0.72,
-      }}
-    >
-      {group.label}
-    </Typography>
-    <List disablePadding>
-      {group.items.map((child) => (
-        <ChildLink key={child.path} label={child.label} path={child.path} pathname={pathname} />
-      ))}
-    </List>
-  </Box>
-);
 
 const ChildLink = ({ label, path, pathname }: { label: string; path: string; pathname: string }) => {
   const active = isPathActive(pathname, path);
@@ -201,4 +166,17 @@ const childButtonSx = (active: boolean) => ({
 const iconSx = (active: boolean) => ({
   minWidth: 32,
   color: active ? "primary.light" : "chrome.sidebarMuted",
+});
+
+const labelVisibilitySx = (collapsed: boolean) => ({
+  minWidth: 0,
+  maxWidth: collapsed ? 0 : 220,
+  overflow: "hidden",
+  opacity: collapsed ? 0 : 1,
+  whiteSpace: "nowrap",
+  transition: (theme: Theme) =>
+    theme.transitions.create(["max-width", "opacity"], {
+      duration: 250,
+      easing: theme.transitions.easing.easeInOut,
+    }),
 });

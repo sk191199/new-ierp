@@ -1,6 +1,6 @@
-import { bindAuthSession } from "@/configurations/api";
+import { bindAuthSession } from "@/configurations/api/api";
 import { ROUTES } from "@/constants/routes";
-import { refreshSessionRequest } from "@/redux/features/auth/authService";
+import { refreshSessionRequest } from "@/configurations/api/authApi";
 import {
   accessTokenUpdated,
   sessionCleared,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { DEFAULT_PAGE_SIZE } from "@/configurations/api";
+import { DEFAULT_PAGE_SIZE } from "@/configurations/api/config";
 import { useDebounce } from "./useDebounce";
 
 export interface TableQueryState {

@@ -13,7 +13,7 @@ import type { DashboardSnapshot } from "@/models/dashboard/dashboard";
 import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
-import { getDashboardSnapshot } from "./dashboardApi";
+import { getDashboardSnapshot } from "@/configurations/api/dashboardApi";
 
 export const DashboardPage = () => {
   const dispatch = useAppDispatch();

@@ -6,7 +6,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/routes";
 import { useResponsive } from "@/hooks/useResponsive";
 import { sessionCleared } from "@/redux/features/auth/authSlice";
-import { logoutRequest } from "@/redux/features/auth/authService";
+import { logoutRequest } from "@/configurations/api/authApi";
 import { permissionsCleared } from "@/redux/features/permissions/permissionSlice";
 import { tenantCleared } from "@/redux/features/tenant/tenantSlice";
 import { mobileNavOpened, selectUi, sidebarToggled, toastShown } from "@/redux/features/ui/uiSlice";
@@ -40,21 +40,44 @@ export const AppLayout = () => {
         sx={{
           width: { xs: 0, md: sidebarWidth },
           flexShrink: 0,
-          transition: "width 180ms ease",
+          overflow: "visible",
+          transition: (theme) =>
+            theme.transitions.create("width", {
+              duration: 250,
+              easing: theme.transitions.easing.easeInOut,
+            }),
           display: { xs: "none", md: "block" },
         }}
       >
-        <Box sx={{ position: "fixed", inset: 0, right: "auto", width: sidebarWidth }}>
+        <Box
+          sx={{
+            position: "fixed",
+            inset: 0,
+            right: "auto",
+            width: sidebarWidth,
+            overflow: "visible",
+            zIndex: (theme) => theme.zIndex.appBar + 1,
+            transition: (theme) =>
+              theme.transitions.create("width", {
+                duration: 250,
+                easing: theme.transitions.easing.easeInOut,
+              }),
+          }}
+        >
           {sidebar}
           <IconButton
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             onClick={() => dispatch(sidebarToggled())}
             sx={{
               position: "absolute",
-              top: 86,
-              right: -14,
-              width: 28,
-              height: 28,
+              top: 30,
+              right: -10,
+              width: 20,
+              height: 20,
+              minWidth: 25,
+              minHeight: 25,
+              borderRadius: "50%",
+              zIndex: (theme) => theme.zIndex.appBar + 1,
               bgcolor: "primary.main",
               color: "primary.contrastText",
               "&:hover": { bgcolor: "primary.dark" },

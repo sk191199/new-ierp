@@ -26,6 +26,7 @@ declare module "@mui/material/styles" {
       input: string;
       hover: string;
       borderStrong: string;
+      signoutBtnHover:string;
     };
   }
 }

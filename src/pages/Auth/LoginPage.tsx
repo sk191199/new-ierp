@@ -2,7 +2,7 @@ import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/ma
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/routes";
-import { loginRequest } from "@/redux/features/auth/authService";
+import { loginRequest } from "@/configurations/api/authApi";
 import { sessionEstablished, sessionFailed } from "@/redux/features/auth/authSlice";
 import { permissionsLoaded } from "@/redux/features/permissions/permissionSlice";
 import { tenantLoaded } from "@/redux/features/tenant/tenantSlice";
