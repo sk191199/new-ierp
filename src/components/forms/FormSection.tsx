@@ -34,9 +34,9 @@ const SectionCopy = ({
       variant="h3"
       sx={{
         fontFamily: "Inter, sans-serif",
-        fontSize: "12px",
+        fontSize: "1rem",
         fontWeight: 700,
-        lineHeight: 1.4,
+        lineHeight: 1.35,
         letterSpacing: "0.05em",
         textTransform: "uppercase",
       }}
@@ -51,9 +51,9 @@ const SectionCopy = ({
         sx={{
           mt: 0.5,
           fontFamily: "Inter, sans-serif",
-          fontSize: "10px",
+          fontSize: "0.8125rem",
           fontWeight: 500,
-          lineHeight: 1.5,
+          lineHeight: 1.45,
           letterSpacing: "0.02em",
           textTransform: "uppercase",
         }}
@@ -83,8 +83,9 @@ export const FormSection = ({
     return (
       <Paper
         sx={{
-          p: { xs: 2, md: 2.5 },
-          borderRadius: 2,
+          p: { xs: 2.5, md: 3 },
+          borderRadius: 2.5,
+          boxShadow: "none",
         }}
       >
         {/* Section Header */}
@@ -125,10 +126,14 @@ export const FormSection = ({
         bgcolor: "background.paper",
         border: 1,
         borderColor: "divider",
-        borderRadius: "16px !important",
+        borderRadius: "12px !important",
         boxShadow: "none",
         backgroundImage: "none",
         overflow: "hidden",
+        transition: (theme) =>
+          theme.transitions.create(["border-color", "box-shadow"], {
+            duration: theme.transitions.duration.short,
+          }),
 
         "&:before": {
           display: "none",
@@ -136,6 +141,8 @@ export const FormSection = ({
 
         "&.Mui-expanded": {
           margin: 0,
+          borderColor: "primary.main",
+          boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}1A`,
         },
       }}
     >
@@ -147,28 +154,41 @@ export const FormSection = ({
         expandIcon={<ExpandMoreIcon />}
         sx={{
           px: { xs: 2, md: 2.5 },
-          py: 1.25,
-          minHeight: 64,
+          py: 1.5,
+          minHeight: 76,
           cursor: "pointer",
-          borderRadius: "16px",
+          borderRadius: 0,
 
-          transition: "background-color 150ms ease",
+          transition: (theme) =>
+            theme.transitions.create("background-color", {
+              duration: theme.transitions.duration.short,
+            }),
 
           "&:hover": {
             bgcolor: "action.hover",
+          },
+
+          "&:active": {
+            bgcolor: "action.selected",
           },
 
           "& .MuiAccordionSummary-content": {
             my: 1,
           },
 
+          "& .MuiAccordionSummary-content.Mui-expanded": {
+            my: 1,
+          },
+
           "& .MuiAccordionSummary-expandIconWrapper": {
             transform: "rotate(0deg)",
-            transition: "transform 200ms ease",
+            color: "text.secondary",
+            transition: "transform 200ms ease, color 150ms ease",
           },
 
           "& .MuiAccordionSummary-expandIconWrapper.Mui-expanded": {
             transform: "rotate(180deg)",
+            color: "primary.main",
           },
         }}
       >
@@ -186,7 +206,9 @@ export const FormSection = ({
         sx={{
           px: { xs: 2, md: 2.5 },
           pb: { xs: 2, md: 2.5 },
-          pt: 0,
+          pt: 2,
+          borderTop: 1,
+          borderColor: "divider",
         }}
       >
         <Stack

@@ -15,6 +15,8 @@ export const ROUTES = {
     leadEdit: (id: string) => `/crm/leads/${id}/edit`,
     contacts: "/crm/contacts",
     opportunities: "/crm/opportunities",
+    opportunityView: (id: string) => `/crm/opportunities/${id}`,
+    opportunityEdit: (id: string) => `/crm/opportunities/${id}/edit`,
     activities: "/crm/activities",
     campaigns: "/crm/campaigns",
   },

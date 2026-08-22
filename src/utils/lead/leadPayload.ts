@@ -59,6 +59,39 @@ export const buildCreateLeadPayload = (draft: LeadDraft) => {
   };
 };
 
+// NEW FOLLOW-UP: A follow-up is a separate backend resource, so its request
+// body is built independently from the Lead update payload.
+export const buildCreateFollowUpPayload = (draft: LeadDraft) => {
+  const followUpDate = draft.followUpDate || localToday();
+  const nextFollowUpDate = draft.newFollowUpDate || followUpDate;
+
+  return {
+    activityType: draft.followUpType || "Call",
+    followUpDate: toFollowUpIsoDateTime(followUpDate),
+    nextFollowUpDate: toFollowUpIsoDateTime(nextFollowUpDate),
+    remarks: draft.followUpNotes,
+    status: draft.followUpStatus || "Pending",
+    // File upload is not part of the existing JSON follow-up contract.
+    attachments: [],
+  };
+};
+
+export interface FollowUpUpdateData {
+  activityType: string;
+  status: string;
+  followUpDate: string;
+  nextFollowUpDate: string;
+  remarks: string;
+}
+
+export const buildUpdateFollowUpPayload = (data: FollowUpUpdateData) => ({
+  activityType: data.activityType,
+  followUpDate: data.followUpDate,
+  status: data.status,
+  nextFollowUpDate: toFollowUpIsoDateTime(data.nextFollowUpDate),
+  remarks: data.remarks,
+});
+
 export const buildUpdateLeadPayload = (draft: LeadDraft) => ({
   companyName: draft.companyName,
   contactPerson: draft.contactPerson,
@@ -67,7 +100,7 @@ export const buildUpdateLeadPayload = (draft: LeadDraft) => ({
   industry: draft.industry,
   address: draft.address,
   annualRevenue: annualRevenueValue(draft.annualRevenue),
-  assignedTo: isUuid(draft.assignedTo) ? draft.assignedTo : undefined,
+  assignedTo: draft.assignedToUserId ?? (isUuid(draft.assignedTo) ? draft.assignedTo : undefined),
   companySize: draft.companySize,
   leadSource: draft.leadSource,
   projectDescription: draft.projectDescription,

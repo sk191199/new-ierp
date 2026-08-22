@@ -27,6 +27,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { Theme } from "@mui/material/styles";
 
 /* ============================================================
    COMMON FIELD STYLES
@@ -34,17 +35,17 @@ import {
 
 const fieldLabelSx = {
   fontFamily: "Inter, sans-serif",
-  fontSize: "10px",
-  fontWeight: 600,
+  fontSize: "0.75rem",
+  fontWeight: 700,
   lineHeight: 1.4,
-  letterSpacing: "0.04em",
+  letterSpacing: "0.05em",
   textTransform: "uppercase",
 };
 
 const fieldInputSx = {
   fontFamily: "Inter, sans-serif",
-  fontSize: "12px",
-  fontWeight: 400,
+  fontSize: "0.875rem",
+  fontWeight: 500,
 };
 
 const fieldPlaceholderSx = {
@@ -59,17 +60,88 @@ const fieldPlaceholderSx = {
 
 const fieldHelperTextSx = {
   fontFamily: "Inter, sans-serif",
-  fontSize: "10px",
+  fontSize: "0.7rem",
   fontWeight: 400,
   lineHeight: 1.4,
+  textTransform: "uppercase",
 };
 
 const menuItemSx = {
   fontFamily: "Inter, sans-serif",
-  fontSize: "12px",
-  fontWeight: 400,
+  fontSize: "0.8125rem",
+  fontWeight: 500,
   textTransform: "uppercase",
+  minHeight: 44,
+  px: 2,
+  py: 1,
+  "&:hover, &.Mui-selected:hover": {
+    bgcolor: "action.hover",
+  },
 };
+
+const fieldControlSx = (theme: Theme) => ({
+  "& .MuiInputLabel-root": {
+    ...fieldLabelSx,
+  },
+  "& .MuiInputLabel-root.MuiInputLabel-shrink": {
+    bgcolor: theme.palette.mode === "light" ? "#F8FAFD" : theme.palette.chrome.input,
+  },
+  "& .MuiOutlinedInput-root": {
+    minHeight: 44,
+    borderRadius: 2.5,
+    bgcolor: theme.palette.mode === "light" ? "#F8FAFD" : theme.palette.chrome.input,
+    transition: theme.transitions.create(["background-color", "box-shadow"], {
+      duration: theme.transitions.duration.short,
+    }),
+    "& fieldset": {
+      borderColor: theme.palette.divider,
+      transition: theme.transitions.create("border-color", {
+        duration: theme.transitions.duration.short,
+      }),
+    },
+    "&:hover": {
+      bgcolor: theme.palette.mode === "light" ? "#F4F7FC" : theme.palette.chrome.hover,
+      "& fieldset": {
+        borderColor: theme.palette.chrome.borderStrong,
+      },
+    },
+    "&.Mui-focused": {
+      boxShadow: `0 0 0 3px ${theme.palette.primary.main}1A`,
+      "& fieldset": {
+        borderColor: theme.palette.primary.main,
+        borderWidth: 1,
+      },
+    },
+    "&.Mui-error": {
+      "& fieldset": {
+        borderColor: theme.palette.error.main,
+      },
+    },
+    "&.Mui-disabled": {
+      bgcolor: theme.palette.action.disabledBackground,
+    },
+    "&.MuiInputBase-multiline": {
+      alignItems: "flex-start",
+      py: 0.5,
+    },
+  },
+  "& .MuiInputBase-input, & .MuiSelect-select": {
+    ...fieldInputSx,
+    px: 1.75,
+    py: 1.25,
+  },
+  "& .MuiInputBase-inputMultiline": {
+    py: 1,
+  },
+  "& .MuiInputBase-input::placeholder": {
+    ...fieldPlaceholderSx,
+  },
+  "& .MuiFormHelperText-root": {
+    ...fieldHelperTextSx,
+    mt: 0.75,
+    mx: 0.5,
+  },
+});
 
 /* ============================================================
    BASE FIELD PROPS
@@ -184,14 +256,17 @@ export const TextFieldControl = ({
     minRows={minRows}
     type={type}
     fullWidth
+    sx={fieldControlSx}
     slotProps={{
-      inputLabel: type === "date" ? { shrink: true } : undefined,
+      inputLabel: type === "date" ? { shrink: true, sx: fieldLabelSx } : { sx: fieldLabelSx },
       htmlInput: {
         min,
       },
       input: {
         readOnly,
+        sx: fieldInputSx,
       },
+      formHelperText: { sx: fieldHelperTextSx },
     }}
   />
 );
@@ -236,6 +311,7 @@ export const SelectField = ({
       required={required}
       disabled={disabled}
       error={Boolean(error)}
+      sx={fieldControlSx}
     >
       {/* ======================================================
           SELECT LABEL
@@ -263,11 +339,7 @@ export const SelectField = ({
         onChange={(event: SelectChangeEvent<string>) =>
           onChange(event.target.value)
         }
-        sx={{
-          fontFamily: "Inter, sans-serif",
-          fontSize: "12px",
-          fontWeight: 400,
-        }}
+        sx={fieldInputSx}
         renderValue={(selected) => {
           const match = options.find(
             (option) => option.value === selected
@@ -283,7 +355,7 @@ export const SelectField = ({
                 component="span"
                 sx={{
                   fontFamily: "Inter, sans-serif",
-                  fontSize: "11px",
+                  fontSize: "0.75rem",
                   fontWeight: 400,
                   textTransform: "uppercase",
                   color: "text.disabled",
@@ -412,9 +484,13 @@ export const CreatableSelectField = ({
             borderColor: "divider",
             width: 24,
             height: 24,
+            borderRadius: 1.5,
+            color: "primary.main",
+            boxShadow: "0 1px 2px rgba(16, 24, 40, 0.08)",
 
             "&:hover": {
-              bgcolor: "action.hover",
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
             },
 
             "@media (hover: none)": {
@@ -463,25 +539,10 @@ export const CreatableSelectField = ({
             }}
             error={Boolean(createError)}
             helperText={createError}
-            sx={{
+            sx={(theme) => ({
               mt: 1,
-
-              "& .MuiInputLabel-root": {
-                ...fieldLabelSx,
-              },
-
-              "& .MuiInputBase-input": {
-                ...fieldInputSx,
-
-                "&::placeholder": {
-                  ...fieldPlaceholderSx,
-                },
-              },
-
-              "& .MuiFormHelperText-root": {
-                ...fieldHelperTextSx,
-              },
-            }}
+              ...fieldControlSx(theme),
+            })}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
@@ -595,7 +656,7 @@ export const FieldGrid = ({
   <Stack
     sx={{
       display: "grid",
-      gap: 2,
+      gap: { xs: 2, md: 2.5 },
 
       gridTemplateColumns: {
         xs: "1fr",

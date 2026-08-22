@@ -1,9 +1,15 @@
 import { API_ENDPOINTS, USE_MOCK, USE_MOCK_LEADS, http, unwrapData } from "./api";
-import type { ApiPaginatedSuccess, ListQuery } from "@/models/common/api";
-import type { Lead, LeadDraft } from "@/models/lead/lead";
+import type { ApiPaginatedSuccess, ApiSuccess, ListQuery } from "@/models/common/api";
+import type { Lead, LeadDraft, LeadFollowUp } from "@/models/lead/lead";
 import { mapBackendLead, type BackendLead, type BackendLeadsResponse } from "@/utils/lead/leadMapper";
-import { buildCreateLeadPayload, buildUpdateLeadPayload } from "@/utils/lead/leadPayload";
 import {
+  buildCreateFollowUpPayload,
+  buildCreateLeadPayload,
+  buildUpdateFollowUpPayload,
+  buildUpdateLeadPayload,
+} from "@/utils/lead/leadPayload";
+import {
+  addMockFollowUp,
   createMockLead,
   deleteMockLead,
   getLocalLeads,
@@ -84,6 +90,35 @@ export const updateLead = async (id: string, draft: LeadDraft): Promise<Lead> =>
   // by-id endpoint and normalize the backend response for the existing UI.
   const response = await http.put(API_ENDPOINTS.leads.byId(id), buildUpdateLeadPayload(draft));
   return mapBackendLead(unwrapData<BackendLead>(response.data));
+};
+
+export const addFollowUp = async (leadId: string, draft: LeadDraft): Promise<LeadFollowUp> => {
+  // MOCK MODE: Keep the existing local lead workflow usable without inventing
+  // a second endpoint; the mock mutation mirrors the live resource operation.
+  if (USE_MOCK_LEADS) {
+    return addMockFollowUp(leadId, draft);
+  }
+
+  // NEW FOLLOW-UP: Use the dedicated child-resource endpoint. This must never
+  // be sent through PUT /leads/{id}, which is reserved for Lead fields only.
+  const response = await http.post<ApiSuccess<LeadFollowUp>>(
+    API_ENDPOINTS.leads.followups(leadId),
+    buildCreateFollowUpPayload(draft),
+  );
+  return unwrapData<LeadFollowUp>(response.data);
+};
+
+export type FollowUpUpdate = Parameters<typeof buildUpdateFollowUpPayload>[0];
+
+export const updateFollowUp = async (
+  followUpId: string,
+  data: FollowUpUpdate,
+): Promise<LeadFollowUp> => {
+  const response = await http.put(
+    API_ENDPOINTS.opportunityFollowUps(followUpId),
+    buildUpdateFollowUpPayload(data),
+  );
+  return unwrapData<LeadFollowUp>(response.data);
 };
 
 export const saveLead = async (next: Lead): Promise<Lead> => {

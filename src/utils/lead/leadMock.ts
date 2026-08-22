@@ -1,7 +1,7 @@
 import { ERROR_CODES } from "@/constants/errorCodes";
 import type { ApiPaginatedSuccess, ListQuery } from "@/models/common/api";
 import { NormalizedApiError } from "@/models/common/api";
-import type { Lead, LeadDraft } from "@/models/lead/lead";
+import type { Lead, LeadDraft, LeadFollowUp } from "@/models/lead/lead";
 import { resolveAiNextAction, resolveLeadConfidence } from "@/models/lead/lead";
 import { leadRecords } from "@/pages/CRM/Leads/leads.mock";
 import { mockLatency } from "@/configurations/api/delay";
@@ -90,6 +90,33 @@ export const updateMockLead = async (id: string, draft: LeadDraft): Promise<Lead
 
   localLeads = localLeads.map((lead, leadIndex) => (leadIndex === index ? updated : lead));
   return updated;
+};
+
+export const addMockFollowUp = async (leadId: string, draft: LeadDraft): Promise<LeadFollowUp> => {
+  await mockLatency();
+  const index = localLeads.findIndex((lead) => lead.id === leadId || lead.leadId === leadId);
+  if (index < 0) {
+    throw new NormalizedApiError(ERROR_CODES.NOT_FOUND, "Lead was not found.", 404);
+  }
+
+  const followUp: LeadFollowUp = {
+    id: `fu-${Date.now()}`,
+    activityType: draft.followUpType || "Call",
+    followUpDate: draft.followUpDate || new Date().toISOString().slice(0, 10),
+    nextFollowUpDate: draft.newFollowUpDate || draft.followUpDate || new Date().toISOString().slice(0, 10),
+    remarks: draft.followUpNotes,
+    status: draft.followUpStatus || "Pending",
+    createdAt: new Date().toISOString(),
+    createdBy: "Current User",
+  };
+
+  localLeads = localLeads.map((item, leadIndex) =>
+    leadIndex === index
+      ? { ...item, followUps: [...(item.followUps ?? []), followUp] }
+      : item,
+  );
+
+  return followUp;
 };
 
 export const saveMockLead = async (next: Lead): Promise<Lead> => {

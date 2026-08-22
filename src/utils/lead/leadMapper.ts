@@ -1,6 +1,11 @@
 import type { ApiPaginatedSuccess, ListQuery } from "@/models/common/api";
 import type { Lead, LeadAttachment, LeadFollowUp } from "@/models/lead/lead";
 import { resolveAiNextAction, resolveLeadConfidence } from "@/models/lead/lead";
+import {
+  leadAssigneeIdMap,
+  leadAssigneeOptions,
+  leadRevenueOptions,
+} from "@/pages/CRM/Leads/leadOptions";
 
 export type BackendFollowUp = {
   id?: string;
@@ -33,6 +38,11 @@ export type BackendLead = {
   address?: string;
   annualRevenue?: number;
   assignedToUserId?: string;
+  assignedTo?: string;
+  assignedToUserName?: string;
+  assignedUserName?: string;
+  assignedToUser?: string | { name?: string; fullName?: string; userName?: string; displayName?: string };
+  assignedUser?: string | { name?: string; fullName?: string; userName?: string; displayName?: string };
   companySize?: string;
   leadSource: string;
   projectType?: string;
@@ -67,6 +77,50 @@ export const enrichLead = (lead: Lead): Lead => ({
   confidence: lead.confidence ?? resolveLeadConfidence(lead.leadScore, lead.status),
   aiNextAction: lead.aiNextAction ?? resolveAiNextAction(lead.leadScore),
 });
+
+const assignedUserName = (value: BackendLead): string => {
+  const user = value.assignedToUser ?? value.assignedUser;
+  const nestedName =
+    typeof user === "string" ? user : user?.fullName ?? user?.displayName ?? user?.userName ?? user?.name;
+  const candidates = [
+    value.assignedToUserName,
+    value.assignedUserName,
+    nestedName,
+    value.assignedTo,
+    value.assignedToUserId,
+  ];
+
+  const matchingOption = leadAssigneeOptions.find((option) =>
+    candidates.some((candidate) => candidate?.trim().toLowerCase() === option.value.toLowerCase()),
+  );
+
+  if (matchingOption) {
+    return matchingOption.value;
+  }
+
+  // The current backend response exposes only the seeded user UUID. Resolve it
+  // through the project-level map instead of displaying a raw UUID in the UI.
+  return leadAssigneeIdMap[value.assignedToUserId as keyof typeof leadAssigneeIdMap] ?? "";
+};
+
+const annualRevenueOption = (value?: number): string | undefined => {
+  if (value === undefined || value <= 0) {
+    return undefined;
+  }
+
+  const option =
+    value >= 100_000_000
+      ? "$100M+"
+      : value >= 50_000_000
+        ? "$50M-$100M"
+        : value >= 10_000_000
+          ? "$10M-$50M"
+          : value >= 5_000_000
+            ? "$5M-$10M"
+            : "$1M-$5M";
+
+  return leadRevenueOptions.some((item) => item.value === option) ? option : undefined;
+};
 
 // Convert backend lead fields into the model used by the existing pages.
 export const mapBackendLead = (lead: BackendLead): Lead => {
@@ -103,13 +157,14 @@ export const mapBackendLead = (lead: BackendLead): Lead => {
     status: lead.status,
     leadScore: 0,
     leadScoreAvailable: false,
-    assignedTo: lead.assignedToUserId ?? "",
+    assignedTo: assignedUserName(lead),
+    assignedToUserId: lead.assignedToUserId,
     createdDate: lead.createdAt?.slice(0, 10) ?? "",
     industry: lead.industry,
     projectType: lead.projectType,
     website: lead.website,
     companySize: lead.companySize,
-    annualRevenue: lead.annualRevenue === undefined ? undefined : String(lead.annualRevenue),
+    annualRevenue: annualRevenueOption(lead.annualRevenue),
     address: lead.address,
     subsidiary: lead.subsidiary,
     subsidiaryId: lead.subsidiaryId,

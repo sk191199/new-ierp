@@ -1,5 +1,6 @@
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SwapHorizOutlinedIcon from "@mui/icons-material/SwapHorizOutlined";
 
@@ -10,6 +11,7 @@ import ConvertOpportunityDialog, {
 
 import {
   Button,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -31,7 +33,7 @@ import {
 import { FormSection } from "@/components/forms/FormSection";
 
 import type { LeadStatus } from "@/constants/statuses";
-import { emptyLeadDraft, type LeadDraft } from "@/models/lead/lead";
+import { emptyLeadDraft, type LeadDraft, type LeadFollowUp } from "@/models/lead/lead";
 
 import { isBlank, isValidEmail } from "@/utils/validators/required";
 
@@ -48,12 +50,18 @@ import {
   leadStatusOptions,
   leadSubsidiaryOptions,
 } from "./leadOptions";
+import { LeadFollowUpHistory, type FollowUpEditData } from "./components/LeadFollowUpHistory";
 
 export const LEAD_FORM_ID = "lead-editor-form";
 
 interface LeadFormProps {
   value: LeadDraft;
+  mode?: "create" | "edit";
+  existingFollowUps?: LeadFollowUp[];
   submitting?: boolean;
+  onAddFollowUp?: (value: LeadDraft) => Promise<void>;
+  onUpdateFollowUp?: (followUpId: string, data: FollowUpEditData) => Promise<void>;
+  onConvertToOpportunity?: (data: OpportunityFormData) => Promise<void>;
   onChange: (value: LeadDraft) => void;
   onSubmit: () => void;
   onClose?: () => void;
@@ -62,13 +70,20 @@ interface LeadFormProps {
 
 export const LeadForm = ({
   value,
+  mode = "create",
+  existingFollowUps = [],
   submitting,
+  onAddFollowUp,
+  onUpdateFollowUp,
+  onConvertToOpportunity,
   onChange,
   onSubmit,
   onClose,
   onReset,
 }: LeadFormProps) => {
   const [attempted, setAttempted] = useState(false);
+  const [showNewFollowUp, setShowNewFollowUp] = useState(mode === "create");
+  const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
 
   // ============================================================
   // DIALOG STATES
@@ -174,6 +189,41 @@ export const LeadForm = ({
       [key]: next,
     });
 
+  const clearNewFollowUp = () => {
+    onChange({
+      ...value,
+      followUpDate: "",
+      newFollowUpDate: "",
+      followUpType: "",
+      followUpStatus: "",
+      followUpNotes: "",
+      followUpFile: null,
+    });
+    setShowNewFollowUp(false);
+  };
+
+  const handleAddFollowUp = async () => {
+    // Reuse the existing follow-up date validation. There is no second set of
+    // follow-up rules, and optional follow-up fields remain optional.
+    setAttempted(true);
+    if (errors.followUpDate || errors.newFollowUpDate || !onAddFollowUp) {
+      return;
+    }
+
+    setFollowUpSubmitting(true);
+    try {
+      // NEW FOLLOW-UP: The parent owns the Lead ID and calls POST
+      // /api/crm/leads/{leadId}/followups; this form never updates history.
+      await onAddFollowUp(value);
+      clearNewFollowUp();
+    } catch {
+      // The parent already reports the backend error through the shared toast;
+      // keep the form open so the user can correct or retry the entry.
+    } finally {
+      setFollowUpSubmitting(false);
+    }
+  };
+
   // ============================================================
   // DISCARD CHANGES
   // ============================================================
@@ -218,6 +268,33 @@ export const LeadForm = ({
   };
 
   // ============================================================
+  // CONVERSION VALIDATION
+  // ============================================================
+
+  /**
+   * Before opening the Opportunity dialog, reuse the same LeadForm
+   * validation that Submit Transaction already uses. This prevents an
+   * incomplete lead from being converted without duplicating validation rules.
+   */
+  const handleConvertToOpportunity = () => {
+    // Prevent opening another conversion flow while a submission is in progress.
+    if (submitting) {
+      return;
+    }
+
+    // Mark the form as attempted so its existing field validation messages appear.
+    setAttempted(true);
+
+    // The existing errors object contains every LeadForm validation result.
+    // Stop here when any validation error exists; otherwise, open the dialog.
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setConversionOpen(true);
+  };
+
+  // ============================================================
   // CONFIRM SAVE
   // ============================================================
 
@@ -234,6 +311,20 @@ export const LeadForm = ({
 
     // Finally submit the transaction.
     onSubmit();
+  };
+
+  const submitOpportunityConversion = async (data: OpportunityFormData) => {
+    if (!onConvertToOpportunity) {
+      setConversionOpen(false);
+      return;
+    }
+
+    try {
+      await onConvertToOpportunity(data);
+      setConversionOpen(false);
+    } catch {
+      // The parent reports the API error and keeps this dialog open for retry.
+    }
   };
 
   return (
@@ -283,7 +374,12 @@ export const LeadForm = ({
             PRIMARY INFORMATION
             ============================================================ */}
 
-        <FormSection title="Primary Information" description="Capture the essential lead details.">
+        <FormSection
+          title="Primary Information"
+          description="Capture the essential lead details."
+          collapsible
+          defaultExpanded
+        >
           <Stack
             spacing={2}
             sx={{
@@ -429,7 +525,7 @@ export const LeadForm = ({
           title="Classification"
           description="Map the lead to the correct subsidiary."
           collapsible
-          defaultExpanded={false}
+          defaultExpanded
         >
           <Stack
             spacing={2}
@@ -490,80 +586,104 @@ export const LeadForm = ({
             FOLLOW-UPS
             ============================================================ */}
 
-        <FormSection
-          title="Follow-ups"
-          description="Optional next action for this lead. These fields are not required."
-          collapsible
-          defaultExpanded={false}
-        >
-          <Stack
-            spacing={2}
-            sx={{
-              px: 1,
-              pb: 1,
-            }}
+        {mode === "edit" ? (
+          <FormSection
+            title="Follow-Up History"
+            description="Previously recorded follow-ups are read-only."
+            collapsible
+            defaultExpanded
           >
-            <FieldGrid>
-              {/* ========================================================
-                  FOLLOW-UP DATE
-                  Automatically uses today's date.
-                  User cannot change it.
-                  ======================================================== */}
+            <LeadFollowUpHistory followUps={existingFollowUps} onUpdateFollowUp={onUpdateFollowUp} />
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<AddOutlinedIcon />}
+              onClick={() => setShowNewFollowUp(true)}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              ADD NEW FOLLOW-UP
+            </Button>
+          </FormSection>
+        ) : null}
 
-              <TextFieldControl
-                name="followUpDate"
-                label="Follow-up Date"
-                type="date"
-                value={currentDate}
-                readOnly
-                onChange={() => {}}
-                error={attempted ? errors.followUpDate : undefined}
-              />
+        {/* NEW FOLLOW-UP IS OPTIONAL:
+          Create mode keeps the existing follow-up controls visible. In edit
+          mode, the same controls stay hidden until the user opts in. */}
+        <Collapse in={showNewFollowUp} timeout={220} unmountOnExit={mode === "edit"}>
+          <FormSection
+            title={mode === "edit" ? "New Follow-Up" : "Follow-ups"}
+            description="Track follow-up activities and next actions."
+            collapsible
+            defaultExpanded
+          >
+            <Stack
+              spacing={2}
+              sx={{
+                px: 1,
+                pb: 1,
+              }}
+            >
+              <FieldGrid>
+                {/* ========================================================
+                    FOLLOW-UP DATE
+                    Automatically uses today's date.
+                    User cannot change it.
+                    ======================================================== */}
 
-              {/* ========================================================
-                  NEW FOLLOW-UP DATE
-                  Today or future dates only.
-                  ======================================================== */}
+                <TextFieldControl
+                  name="followUpDate"
+                  label="Follow-up Date"
+                  type="date"
+                  value={currentDate}
+                  readOnly
+                  onChange={() => {}}
+                  error={attempted ? errors.followUpDate : undefined}
+                />
 
-              <TextFieldControl
-                name="newFollowUpDate"
-                label="New Follow-up Date"
-                type="date"
-                value={value.newFollowUpDate}
-                min={currentDate}
-                onChange={(next) => patch("newFollowUpDate", next)}
-                error={attempted ? errors.newFollowUpDate : undefined}
-              />
+                {/* ========================================================
+                    NEW FOLLOW-UP DATE
+                    Today or future dates only.
+                    ======================================================== */}
 
-              {/* ========================================================
-                  FOLLOW-UP STATUS
-                  ======================================================== */}
+                <TextFieldControl
+                  name="newFollowUpDate"
+                  label="New Follow-up Date"
+                  type="date"
+                  value={value.newFollowUpDate}
+                  min={currentDate}
+                  onChange={(next) => patch("newFollowUpDate", next)}
+                  error={attempted ? errors.newFollowUpDate : undefined}
+                />
 
-              <SelectField
-                name="followUpStatus"
-                label="Follow-up Status"
-                value={value.followUpStatus}
-                onChange={(next) => patch("followUpStatus", next)}
-                options={leadFollowUpStatus}
-                includeEmpty
-              />
+                {/* ========================================================
+                    FOLLOW-UP STATUS
+                    ======================================================== */}
 
-              {/* ========================================================
-                  FOLLOW-UP TYPE
-                  ======================================================== */}
+                <SelectField
+                  name="followUpStatus"
+                  label="Follow-up Status"
+                  value={value.followUpStatus}
+                  onChange={(next) => patch("followUpStatus", next)}
+                  options={leadFollowUpStatus}
+                  includeEmpty
+                />
 
-              <SelectField
-                name="followUpType"
-                label="Follow-up Type"
-                value={value.followUpType}
-                onChange={(next) => patch("followUpType", next)}
-                options={leadFollowUpTypeOptions}
-                includeEmpty
-              />
+                {/* ========================================================
+                    FOLLOW-UP TYPE
+                    ======================================================== */}
 
-              {/* ========================================================
-                  FOLLOW-UP FILE
-                  ======================================================== */}
+                <SelectField
+                  name="followUpType"
+                  label="Follow-up Type"
+                  value={value.followUpType}
+                  onChange={(next) => patch("followUpType", next)}
+                  options={leadFollowUpTypeOptions}
+                  includeEmpty
+                />
+
+                {/* ========================================================
+                    FOLLOW-UP FILE
+                    ======================================================== */}
 
               <TextField
                 fullWidth
@@ -579,6 +699,48 @@ export const LeadForm = ({
                 InputLabelProps={{
                   shrink: true,
                 }}
+                sx={(theme) => ({
+                  "& .MuiInputLabel-root": {
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                  },
+                  "& .MuiInputLabel-root.MuiInputLabel-shrink": {
+                    bgcolor: theme.palette.mode === "light" ? "#F8FAFD" : theme.palette.chrome.input,
+                  },
+                  "& .MuiOutlinedInput-root": {
+                    minHeight: 44,
+                    borderRadius: 2.5,
+                    bgcolor: theme.palette.mode === "light" ? "#F8FAFD" : theme.palette.chrome.input,
+                    transition: theme.transitions.create(["background-color", "box-shadow"], {
+                      duration: theme.transitions.duration.short,
+                    }),
+                    "& fieldset": {
+                      borderColor: theme.palette.divider,
+                    },
+                    "&:hover": {
+                      bgcolor: theme.palette.mode === "light" ? "#F4F7FC" : theme.palette.chrome.hover,
+                      "& fieldset": {
+                        borderColor: theme.palette.chrome.borderStrong,
+                      },
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: `0 0 0 3px ${theme.palette.primary.main}1A`,
+                      "& fieldset": {
+                        borderColor: theme.palette.primary.main,
+                      },
+                    },
+                  },
+                  "& .MuiInputBase-input": {
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    px: 1.75,
+                    py: 1.25,
+                  },
+                })}
                 onChange={(event) => {
                   const target = event.target as HTMLInputElement;
 
@@ -596,16 +758,32 @@ export const LeadForm = ({
                 FOLLOW-UP NOTES
                 ========================================================== */}
 
-            <TextFieldControl
-              name="followUpNotes"
-              label="Follow-up Notes"
-              multiline
-              minRows={3}
-              value={value.followUpNotes}
-              onChange={(next) => patch("followUpNotes", next)}
-            />
-          </Stack>
-        </FormSection>
+              <TextFieldControl
+                name="followUpNotes"
+                label="Follow-up Notes"
+                multiline
+                minRows={3}
+                value={value.followUpNotes}
+                onChange={(next) => patch("followUpNotes", next)}
+              />
+              {mode === "edit" ? (
+                <Stack direction="row" justifyContent="flex-end" gap={1}>
+                  <Button type="button" variant="outlined" onClick={clearNewFollowUp}>
+                    CANCEL
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="contained"
+                    onClick={() => void handleAddFollowUp()}
+                    disabled={followUpSubmitting || submitting}
+                  >
+                    ADD FOLLOW-UP
+                  </Button>
+                </Stack>
+              ) : null}
+            </Stack>
+          </FormSection>
+        </Collapse>
 
         {/* ============================================================
             FORM ACTION BUTTONS
@@ -637,7 +815,9 @@ export const LeadForm = ({
             type="button"
             variant="outlined"
             startIcon={<SwapHorizOutlinedIcon />}
-            onClick={() => setConversionOpen(true)}
+            // IMPORTANT: Keep this button enabled so clicking it can reveal
+            // the existing LeadForm validation errors for incomplete leads.
+            onClick={handleConvertToOpportunity}
             sx={{
               flex: 1,
               bgcolor: "#e8f9f3",
@@ -720,29 +900,7 @@ export const LeadForm = ({
         companyName={value.companyName}
         submitting={submitting}
         onClose={() => setConversionOpen(false)}
-        onConvert={(data: OpportunityFormData) => {
-          console.log("Opportunity conversion data:", data);
-
-          // ============================================================
-          // HERE YOU CAN CALL YOUR CONVERSION API
-          // ============================================================
-
-          /*
-      Example:
-
-      await convertLeadToOpportunity({
-        leadId: value.id,
-        opportunityValue: Number(data.opportunityValue),
-        stage: data.stage,
-        probability: Number(data.probability),
-        competitors: data.competitors,
-        nextSteps: data.nextSteps,
-        closeReason: data.closeReason,
-      });
-    */
-
-          setConversionOpen(false);
-        }}
+        onConvert={submitOpportunityConversion}
       />
 
       {/* ================================================================

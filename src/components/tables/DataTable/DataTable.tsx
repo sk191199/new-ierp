@@ -22,6 +22,8 @@ import {
   TableRow,
   TableSortLabel,
 } from "@mui/material";
+import type { SystemStyleObject } from "@mui/system";
+import type { Theme } from "@mui/material/styles";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { EmptyState } from "@/components/common/EmptyState/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState/ErrorState";
@@ -70,6 +72,9 @@ export interface DataTableProps<T> {
   enableColumnResize?: boolean;
   variant?: "default" | "cards";
   paginationStyle?: "range" | "count";
+  tableSx?: SystemStyleObject<Theme>;
+  actionColumnSize?: number;
+  fluidColumnIds?: string[];
 }
 
 export const DataTable = <T,>({
@@ -104,6 +109,9 @@ export const DataTable = <T,>({
   enableColumnResize = true,
   variant = "default",
   paginationStyle = "range",
+  tableSx,
+  actionColumnSize,
+  fluidColumnIds = [],
 }: DataTableProps<T>) => {
   const tableColumns = useMemo<ColumnDef<T, unknown>[]>(() => {
     const selectionColumn: ColumnDef<T, unknown> = {
@@ -144,8 +152,8 @@ export const DataTable = <T,>({
         </Box>
       ),
       enableSorting: false,
-      size: variant === "cards" ? 172 : 128,
-      minSize: variant === "cards" ? 148 : 88,
+      size: actionColumnSize ?? (variant === "cards" ? 172 : 128),
+      minSize: actionColumnSize ?? (variant === "cards" ? 148 : 88),
     };
 
     return [
@@ -153,7 +161,7 @@ export const DataTable = <T,>({
       ...columns,
       ...(rowActions ? [actionColumn] : []),
     ];
-  }, [columns, enableSelection, rowActions, variant]);
+  }, [actionColumnSize, columns, enableSelection, rowActions, variant]);
 
   const columnVisibility: VisibilityState = {};
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -264,10 +272,11 @@ export const DataTable = <T,>({
           <Table
             stickyHeader={!isCards}
             size="small"
-            sx={(theme) => ({
-              tableLayout: "fixed",
-              width: table.getTotalSize(),
-              minWidth: "100%",
+            sx={[
+              (theme) => ({
+                  tableLayout: fluidColumnIds.length > 0 ? "auto" : "fixed",
+                  width: fluidColumnIds.length > 0 ? "100%" : table.getTotalSize(),
+                minWidth: "100%",
               ...(isCards
                 ? {
                     borderCollapse: "separate",
@@ -300,7 +309,9 @@ export const DataTable = <T,>({
                     },
                   }
                 : {}),
-            })}
+              }),
+              tableSx ?? {},
+            ]}
           >
             <TableHead>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -310,14 +321,15 @@ export const DataTable = <T,>({
                     const sorted = header.column.getIsSorted();
                     const width = header.getSize();
                     const isSelect = header.column.id === "select";
+                    const isFluid = fluidColumnIds.includes(header.column.id);
                     return (
                       <TableCell
                         key={header.id}
                         sx={{
                           position: "relative",
                           width,
-                          minWidth: width,
-                          maxWidth: width,
+                          minWidth: isFluid ? header.column.columnDef.minSize ?? width : width,
+                          maxWidth: isFluid ? "none" : width,
                           overflow: isSelect ? "visible" : "hidden",
                           px: isSelect ? 1 : 1.5,
                           textAlign: isSelect ? "center" : "left",
@@ -396,7 +408,15 @@ export const DataTable = <T,>({
                                   sx={rowSx}
                                 >
                                   {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id} sx={bodyCellSx(cell.column.getSize(), cell.column.id)}>
+                                      <TableCell
+                                        key={cell.id}
+                                        sx={bodyCellSx(
+                                          cell.column.getSize(),
+                                          cell.column.id,
+                                          fluidColumnIds,
+                                          cell.column.columnDef.minSize,
+                                        )}
+                                      >
                                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                     </TableCell>
                                   ))}
@@ -419,7 +439,15 @@ export const DataTable = <T,>({
                     sx={rowSx}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} sx={bodyCellSx(cell.column.getSize(), cell.column.id)}>
+                      <TableCell
+                        key={cell.id}
+                        sx={bodyCellSx(
+                          cell.column.getSize(),
+                          cell.column.id,
+                          fluidColumnIds,
+                          cell.column.columnDef.minSize,
+                        )}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -442,13 +470,19 @@ export const DataTable = <T,>({
   );
 };
 
-const bodyCellSx = (width: number, columnId: string) => {
+const bodyCellSx = (
+  width: number,
+  columnId: string,
+  fluidColumnIds: string[],
+  minWidth = width,
+) => {
   const isSelect = columnId === "select";
   const isActions = columnId === "actions";
+  const isFluid = fluidColumnIds.includes(columnId);
   return {
     width,
-    minWidth: width,
-    maxWidth: width,
+    minWidth: isFluid ? minWidth : width,
+    maxWidth: isFluid ? "none" : width,
     overflow: isSelect || isActions ? "visible" : "hidden",
     textOverflow: "ellipsis",
     whiteSpace: isSelect || isActions ? "normal" : "nowrap",

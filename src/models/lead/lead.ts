@@ -35,6 +35,9 @@ export interface Lead {
   status: LeadStatus;
   leadScore: number;
   assignedTo: string;
+  // API INTEGRATION: Retains the backend assigned-user UUID while the form
+  // displays the existing human-readable assignee option.
+  assignedToUserId?: string;
   createdDate: string;
   confidence?: number;
   aiNextAction?: string;
@@ -74,6 +77,8 @@ export interface LeadDraft {
   leadSource: string;
   status: LeadStatus;
   assignedTo: string;
+  // API INTEGRATION: Keeps the backend UUID available for update requests.
+  assignedToUserId?: string;
   website: string;
   companySize: string;
   annualRevenue: string;

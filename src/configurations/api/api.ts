@@ -15,6 +15,7 @@ export {
   USE_DEV_HEADERS,
   USE_MOCK,
   USE_MOCK_LEADS,
+  USE_MOCK_OPPORTUNITIES,
 } from "./config";
 export { http, bindAuthSession, unwrapData } from "./requestBuilder";
 export { normalizeError } from "./errorNormalizer";

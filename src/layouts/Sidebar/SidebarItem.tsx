@@ -49,7 +49,7 @@ export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
             <Box sx={labelVisibilitySx(collapsed)}>
               <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} />
             </Box>
-            <Box sx={labelVisibilitySx(collapsed)}>
+            <Box sx={chevronVisibilitySx(collapsed)}>
               {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
             </Box>
           </ListItemButton>
@@ -117,6 +117,8 @@ const parentButtonSx = (collapsed: boolean) => ({
   mx: 1,
   mb: 0.25,
   minHeight: 42,
+  display: "flex",
+  alignItems: "center",
   borderRadius: 1.5,
   justifyContent: collapsed ? "center" : "flex-start",
   color: "chrome.sidebarMuted",
@@ -130,6 +132,8 @@ const leafButtonSx = (active: boolean, collapsed: boolean) => ({
   mx: 1,
   mb: 0.4,
   minHeight: 40,
+  display: "flex",
+  alignItems: "center",
   borderRadius: 2,
   justifyContent: collapsed ? "center" : "flex-start",
   color: active ? "primary.light" : "chrome.sidebarMuted",
@@ -147,6 +151,8 @@ const childButtonSx = (active: boolean) => ({
   mx: 1.25,
   mb: 0.35,
   minHeight: 34,
+  display: "flex",
+  alignItems: "center",
   borderRadius: 2,
   pl: 1.5,
   color: active ? "primary.light" : "chrome.sidebarMuted",
@@ -165,11 +171,16 @@ const childButtonSx = (active: boolean) => ({
 
 const iconSx = (active: boolean) => ({
   minWidth: 32,
+  width: 32,
+  flexShrink: 0,
+  display: "grid",
+  placeItems: "center",
   color: active ? "primary.light" : "chrome.sidebarMuted",
 });
 
 const labelVisibilitySx = (collapsed: boolean) => ({
   minWidth: 0,
+  flex: collapsed ? 0 : 1,
   maxWidth: collapsed ? 0 : 220,
   overflow: "hidden",
   opacity: collapsed ? 0 : 1,
@@ -180,3 +191,18 @@ const labelVisibilitySx = (collapsed: boolean) => ({
       easing: theme.transitions.easing.easeInOut,
     }),
 });
+
+  const chevronVisibilitySx = (collapsed: boolean) => ({
+    display: "flex",
+    alignItems: "center",
+    flexShrink: 0,
+    ml: "auto",
+    maxWidth: collapsed ? 0 : 24,
+    overflow: "hidden",
+    opacity: collapsed ? 0 : 1,
+    transition: (theme: Theme) =>
+      theme.transitions.create(["max-width", "opacity"], {
+        duration: 250,
+        easing: theme.transitions.easing.easeInOut,
+      }),
+  });

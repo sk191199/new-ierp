@@ -13,6 +13,12 @@ export const leadAssigneeOptions = ["Priya Sharma", "Liam Walker", "Arjun Rao"].
   label: value,
 }));
 
+// API INTEGRATION: The current create/update contract uses this seeded user
+// UUID, while the form displays the corresponding existing assignee option.
+export const leadAssigneeIdMap = {
+  "3fa85f64-5717-4562-b3fc-2c963f66afa6": "Priya Sharma",
+} as const;
+
 const predefinedIndustries = [
   "Technology",
   "Logistics",
