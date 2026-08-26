@@ -290,7 +290,7 @@ const baseNavigationItems: NavigationItem[] = [
 
   {
     label: "System Settings",
-    path: ROUTES.settings.system,
+    path: ROUTES.settingsSystem,
     icon: SettingsOutlinedIcon,
   },
 ];

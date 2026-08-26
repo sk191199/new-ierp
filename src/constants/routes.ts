@@ -64,8 +64,6 @@ export const ROUTES = {
     root: "/masters",
     customers: "/masters/customers",
   },
-  settings: {
-    root: "/settings",
-    system: "/settings/system",
-  },
+  settings: "/settings",
+  settingsSystem: "/settings/system",
 } as const;

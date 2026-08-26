@@ -169,7 +169,7 @@ export const AppRoutes = () => {
               element: <SettingsMain />,
             },
             {
-              path: ROUTES.settings.system,
+              path: ROUTES.settingsSystem,
               element: <SystemSettingsPage />,
             },
             {
