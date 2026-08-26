@@ -46,6 +46,11 @@ const ModulePlaceholder = lazy(() =>
     default: module.ModulePlaceholder,
   })),
 );
+const SystemSettingsPage = lazy(() =>
+  import("@/pages/Settings/SystemSettingsPage").then((module) => ({
+    default: module.SystemSettingsPage,
+  })),
+);
 
 const SettingsMain = lazy(() =>
   import("@/pages/Settings/SettingsMain").then((module) => ({
@@ -157,6 +162,10 @@ export const AppRoutes = () => {
             {
               path: ROUTES.settings,
               element: <SettingsMain />,
+            },
+            {
+              path: ROUTES.settings.system,
+              element: <SystemSettingsPage />,
             },
           ],
         },

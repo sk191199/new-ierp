@@ -23,10 +23,7 @@ import {
 
 import type { SelectChangeEvent } from "@mui/material/Select";
 
-import {
-  useState,
-  type ReactNode,
-} from "react";
+import { Children, isValidElement, useState, type ReactNode } from "react";
 import type { Theme } from "@mui/material/styles";
 
 /* ============================================================
@@ -244,6 +241,7 @@ export const TextFieldControl = ({
 }: TextLikeProps) => (
   <TextField
     name={name}
+    data-field-key={name}
     label={label}
     value={value}
     onChange={(event) => onChange(event.target.value)}
@@ -332,6 +330,7 @@ export const SelectField = ({
       <Select
         labelId={`${name}-label`}
         name={name}
+        data-field-key={name}
         label={label}
         value={value}
         displayEmpty={hasEmptyOption}
@@ -650,13 +649,24 @@ export const BooleanField = ({
 
 export const FieldGrid = ({
   children,
+  fieldOrder,
 }: {
   children: ReactNode;
-}) => (
+  fieldOrder?: string[];
+}) => {
+  const orderMap = new Map((fieldOrder ?? []).map((fieldKey, index) => [fieldKey, index]));
+
+  return (
   <Stack
     sx={{
       display: "grid",
       gap: { xs: 2, md: 2.5 },
+      "& > [data-field-key=\"address\"]": {
+        gridColumn: "1 / -1",
+      },
+      "& > [data-field-key=\"followUpNotes\"]": {
+        gridColumn: "1 / -1",
+      },
 
       gridTemplateColumns: {
         xs: "1fr",
@@ -665,6 +675,19 @@ export const FieldGrid = ({
       },
     }}
   >
-    {children}
+    {Children.map(children, (child) => {
+      if (!isValidElement(child)) {
+        return child;
+      }
+
+      const fieldKey = child.props.name as string | undefined;
+      const order = fieldKey ? orderMap.get(fieldKey) ?? fieldOrder?.length ?? 0 : fieldOrder?.length ?? 0;
+      return (
+        <Box key={fieldKey ?? String(child.key)} data-field-key={fieldKey} sx={{ order, minWidth: 0 }}>
+          {child}
+        </Box>
+      );
+    })}
   </Stack>
-);
+  );
+};
