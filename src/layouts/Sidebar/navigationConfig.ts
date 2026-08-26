@@ -324,7 +324,7 @@ export const navigationItems = (): NavigationItem[] => {
     .map((module) => ({
       label: module,
       icon: SettingsOutlinedIcon,
-      path: `/settings/catalog/${settingsSlug(module)}`,
+      path: configured.screensByModule[module]?.length ? undefined : `/settings/catalog/${settingsSlug(module)}`,
       children: (configured.screensByModule[module] ?? []).map((screen) => ({
         label: screen,
         path: `/settings/catalog/${settingsSlug(module)}/${settingsSlug(screen)}`,

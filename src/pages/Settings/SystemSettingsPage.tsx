@@ -232,6 +232,7 @@ export const SystemSettingsPage = () => {
     const next = { ...catalog, screensByModule: { ...screensByModule, [activeModule]: [...(screensByModule[activeModule] ?? []), name] } };
     setCatalog(next);
     saveSettingsCatalog(next);
+    setActiveScreen(name);
     setScreenName("");
     setScreenDialogOpen(false);
     dispatch(toastShown({ message: "Screen added successfully.", severity: "success" }));
