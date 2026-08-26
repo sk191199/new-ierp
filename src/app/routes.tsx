@@ -51,6 +51,11 @@ const SystemSettingsPage = lazy(() =>
     default: module.SystemSettingsPage,
   })),
 );
+const ConfiguredScreenPage = lazy(() =>
+  import("@/pages/Settings/ConfiguredScreenPage").then((module) => ({
+    default: module.ConfiguredScreenPage,
+  })),
+);
 
 const SettingsMain = lazy(() =>
   import("@/pages/Settings/SettingsMain").then((module) => ({
@@ -166,6 +171,14 @@ export const AppRoutes = () => {
             {
               path: ROUTES.settings.system,
               element: <SystemSettingsPage />,
+            },
+            {
+              path: "/settings/catalog/:module/:screen",
+              element: <ConfiguredScreenPage />,
+            },
+            {
+              path: "/settings/catalog/:module",
+              element: <ConfiguredScreenPage />,
             },
           ],
         },

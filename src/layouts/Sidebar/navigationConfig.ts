@@ -137,6 +137,7 @@ import type { SvgIconComponent } from "@mui/icons-material";
 
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROUTES } from "@/constants/routes";
+import { readSettingsCatalog, settingsSlug } from "@/pages/Settings/settingsCatalog";
 
 export interface NavigationChild {
   label: string;
@@ -156,7 +157,7 @@ export const getNavigationLeaves = (
   item: NavigationItem,
 ): NavigationChild[] => item.children ?? [];
 
-export const navigationItems: NavigationItem[] = [
+const baseNavigationItems: NavigationItem[] = [
   {
     label: "Inventory & Supply Chain",
     icon: Inventory2OutlinedIcon,
@@ -293,3 +294,42 @@ export const navigationItems: NavigationItem[] = [
     icon: SettingsOutlinedIcon,
   },
 ];
+
+export const navigationItems = (): NavigationItem[] => {
+  const configured = readSettingsCatalog();
+  const existingLabels = new Set(baseNavigationItems.map((item) => item.label));
+  const hiddenLegacyModules = new Set(["hr & payroll", "project management", "manufacturing", "shopping"]);
+  const configuredItems = baseNavigationItems.map((item) => {
+    const configuredScreens = configured.screensByModule[item.label];
+    if (!configuredScreens?.length || !item.children) {
+      return item;
+    }
+
+    const existingScreens = new Set(item.children.map((child) => child.label));
+    return {
+      ...item,
+      children: [
+        ...item.children,
+        ...configuredScreens
+          .filter((screen) => !existingScreens.has(screen))
+          .map((screen) => ({
+            label: screen,
+            path: `/settings/catalog/${settingsSlug(item.label)}/${settingsSlug(screen)}`,
+          })),
+      ],
+    };
+  });
+  const dynamicItems = configured.modules
+    .filter((module) => !existingLabels.has(module) && !hiddenLegacyModules.has(module.trim().toLowerCase()))
+    .map((module) => ({
+      label: module,
+      icon: SettingsOutlinedIcon,
+      path: `/settings/catalog/${settingsSlug(module)}`,
+      children: (configured.screensByModule[module] ?? []).map((screen) => ({
+        label: screen,
+        path: `/settings/catalog/${settingsSlug(module)}/${settingsSlug(screen)}`,
+      })),
+    }));
+
+  return [...configuredItems, ...dynamicItems];
+};

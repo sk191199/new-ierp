@@ -1,8 +1,10 @@
 import LogoutIcon from "@mui/icons-material/Logout";
 import { Avatar, Box, Button, List, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { navigationItems } from "./navigationConfig";
+import { SETTINGS_CATALOG_KEY } from "@/pages/Settings/settingsCatalog";
 import { SidebarItem } from "./SidebarItem";
 
 interface SidebarProps {
@@ -12,6 +14,13 @@ interface SidebarProps {
 
 export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
   const { user } = useAuth();
+  const [items, setItems] = useState(navigationItems());
+
+  useEffect(() => {
+    const refresh = () => setItems(navigationItems());
+    window.addEventListener(SETTINGS_CATALOG_KEY, refresh);
+    return () => window.removeEventListener(SETTINGS_CATALOG_KEY, refresh);
+  }, []);
 
   return (
     <Box
@@ -81,7 +90,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
       </Stack>
 
       <List sx={{ flex: 1, overflowY: "auto", py: 0.5 }}>
-        {navigationItems.map((item) => (
+        {items.map((item) => (
           <SidebarItem key={item.label} item={item} collapsed={collapsed} />
         ))}
       </List>

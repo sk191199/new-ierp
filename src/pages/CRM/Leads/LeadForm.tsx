@@ -54,8 +54,10 @@ import { LeadFollowUpHistory, type FollowUpEditData } from "./components/LeadFol
 import {
   LEAD_CUSTOM_FIELDS_KEY,
   LEAD_FIELD_ORDER_KEY,
+  LEAD_FIELD_VISIBILITY_KEY,
   readLeadCustomFields,
   readLeadFieldOrder,
+  readLeadFieldVisibility,
   type LeadCustomField,
   type LeadFieldOrder,
 } from "./leadFieldOrder";
@@ -93,12 +95,13 @@ export const LeadForm = ({
   const [showNewFollowUp, setShowNewFollowUp] = useState(mode === "create");
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
   const [fieldOrder, setFieldOrder] = useState<LeadFieldOrder>(readLeadFieldOrder);
+  const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(readLeadFieldVisibility);
   const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
 
-  const renderCustomFields = (section: LeadCustomField["section"]) =>
+  const renderCustomFields = (section: LeadCustomField["section"], visibility = fieldVisibility) =>
     customFields
-      .filter((field) => field.screen === "Lead Management" && field.section === section)
+      .filter((field) => field.module === "CRM & Customer Engagement" && field.screen === "Lead Management" && field.section === section && visibility[field.id] !== false)
       .map((field) => (
         <TextFieldControl
           key={field.id}
@@ -113,6 +116,17 @@ export const LeadForm = ({
         />
       ));
 
+  const renderUnmappedCustomSections = () => {
+    const knownSections = new Set(["Primary Information", "Classification", "Additional Information", "Follow-ups"]);
+    return Array.from(new Set(customFields.filter((field) => field.module === "CRM & Customer Engagement" && field.screen === "Lead Management" && !knownSections.has(field.section)).map((field) => field.section))).map((section) => (
+      <FormSection key={section} title={section} description="Custom Lead Management fields." collapsible defaultExpanded>
+        <FieldGrid>
+          {renderCustomFields(section)}
+        </FieldGrid>
+      </FormSection>
+    ));
+  };
+
   useEffect(() => {
     const updateFieldOrder = (event: Event) => {
       const customEvent = event as CustomEvent<LeadFieldOrder>;
@@ -120,6 +134,11 @@ export const LeadForm = ({
     };
 
     window.addEventListener(LEAD_FIELD_ORDER_KEY, updateFieldOrder);
+    const updateVisibility = (event: Event) => {
+      const customEvent = event as CustomEvent<Record<string, boolean>>;
+      setFieldVisibility(customEvent.detail ?? readLeadFieldVisibility());
+    };
+    window.addEventListener(LEAD_FIELD_VISIBILITY_KEY, updateVisibility);
     const updateCustomFields = (event: Event) => {
       const customEvent = event as CustomEvent<LeadCustomField[]>;
       setCustomFields(customEvent.detail ?? readLeadCustomFields());
@@ -127,6 +146,7 @@ export const LeadForm = ({
     window.addEventListener(LEAD_CUSTOM_FIELDS_KEY, updateCustomFields);
     return () => {
       window.removeEventListener(LEAD_FIELD_ORDER_KEY, updateFieldOrder);
+      window.removeEventListener(LEAD_FIELD_VISIBILITY_KEY, updateVisibility);
       window.removeEventListener(LEAD_CUSTOM_FIELDS_KEY, updateCustomFields);
     };
   }, []);
@@ -385,6 +405,26 @@ export const LeadForm = ({
         id={LEAD_FORM_ID}
         sx={{
           color: "text.primary",
+          "& .MuiPaper-root": {
+            border: 0,
+            boxShadow: (theme) => theme.palette.mode === "light"
+              ? "0 5px 22px rgba(15, 23, 42, 0.10)"
+              : "0 5px 22px rgba(0, 0, 0, 0.28)",
+            bgcolor: (theme) => theme.palette.mode === "light" ? "#FFFFFF" : theme.palette.background.paper,
+          },
+          "& .MuiAccordion-root": {
+            border: 0,
+            boxShadow: (theme) => theme.palette.mode === "light"
+              ? "0 5px 22px rgba(15, 23, 42, 0.10)"
+              : "0 5px 22px rgba(0, 0, 0, 0.28)",
+            bgcolor: (theme) => theme.palette.mode === "light" ? "#FFFFFF" : theme.palette.chrome.input,
+          },
+          "& .MuiAccordion-root.Mui-expanded": {
+            border: 0,
+            boxShadow: (theme) => theme.palette.mode === "light"
+              ? "0 8px 28px rgba(15, 23, 42, 0.14)"
+              : "0 8px 28px rgba(0, 0, 0, 0.38)",
+          },
           "& .MuiTypography-root, & .MuiInputLabel-root, & .MuiButton-root": {
             fontFamily: "Inter, sans-serif",
             textTransform: "uppercase",
@@ -433,7 +473,11 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <FieldGrid fieldOrder={fieldOrder.primary}>
+            <FieldGrid
+              fieldOrder={fieldOrder.primary}
+              fieldVisibility={fieldVisibility}
+              requiredFieldKeys={["companyName", "contactPerson", "phone", "email", "status", "address"]}
+            >
               <TextFieldControl
                 name="companyName"
                 label="Company Name"
@@ -580,15 +624,15 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <SelectField
+            {fieldVisibility.subsidiary !== false ? <SelectField
               name="subsidiary"
               label="Subsidiary"
               value={value.subsidiary}
               onChange={(next) => patch("subsidiary", next)}
               options={leadSubsidiaryOptions}
               includeEmpty
-            />
-            {renderCustomFields("Classification")}
+            /> : null}
+            {renderCustomFields("Classification", fieldVisibility)}
           </Stack>
         </FormSection>
 
@@ -609,26 +653,28 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <TextFieldControl
+            {fieldVisibility.projectDescription !== false ? <TextFieldControl
               name="projectDescription"
               label="Project Description"
               multiline
               minRows={4}
               value={value.projectDescription}
               onChange={(next) => patch("projectDescription", next)}
-            />
+            /> : null}
 
-            <TextFieldControl
+            {fieldVisibility.notes !== false ? <TextFieldControl
               name="notes"
               label="Notes"
               multiline
               minRows={4}
               value={value.notes}
               onChange={(next) => patch("notes", next)}
-            />
-            {renderCustomFields("Additional Information")}
+            /> : null}
+            {renderCustomFields("Additional Information", fieldVisibility)}
           </Stack>
         </FormSection>
+
+        {renderUnmappedCustomSections()}
 
         {/* ============================================================
             FOLLOW-UPS
@@ -671,7 +717,7 @@ export const LeadForm = ({
                 pb: 1,
               }}
             >
-              <FieldGrid fieldOrder={fieldOrder.followUps}>
+              <FieldGrid fieldOrder={fieldOrder.followUps} fieldVisibility={fieldVisibility}>
                 {/* ========================================================
                     FOLLOW-UP DATE
                     Automatically uses today's date.
@@ -802,15 +848,15 @@ export const LeadForm = ({
                   });
                 }}
               />
-              <TextFieldControl
+              {fieldVisibility.followUpNotes !== false ? <TextFieldControl
                 name="followUpNotes"
                 label="Follow-up Notes"
                 multiline
                 minRows={3}
                 value={value.followUpNotes}
                 onChange={(next) => patch("followUpNotes", next)}
-              />
-              {renderCustomFields("Follow-ups")}
+              /> : null}
+              {renderCustomFields("Follow-ups", fieldVisibility)}
             </FieldGrid>
 
             {/* ==========================================================
@@ -845,8 +891,15 @@ export const LeadForm = ({
           sx={{
             mt: 1,
             pt: 2,
-            borderTop: 1,
-            borderColor: "divider",
+            position: "sticky",
+            bottom: 16,
+            zIndex: 2,
+            p: { xs: 1.25, md: 1.5 },
+            borderRadius: 2.5,
+            bgcolor: "background.paper",
+            boxShadow: (theme) => theme.palette.mode === "light"
+              ? "0 10px 30px rgba(15, 23, 42, 0.16)"
+              : "0 10px 30px rgba(0, 0, 0, 0.42)",
 
             "& .MuiButton-root": {
               minHeight: 40,
@@ -856,6 +909,7 @@ export const LeadForm = ({
               letterSpacing: "0.04em",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
+              padding: "22px",
             },
           }}
         >

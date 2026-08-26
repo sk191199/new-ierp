@@ -1,13 +1,15 @@
 export const LEAD_FIELD_ORDER_KEY = "ierp.lead-management-field-order";
 export const LEAD_CUSTOM_FIELDS_KEY = "ierp.lead-management-custom-fields";
+export const LEAD_FIELD_VISIBILITY_KEY = "ierp.lead-management-field-visibility";
 
 export interface LeadCustomField {
   id: string;
   label: string;
   type: "Text / Char" | "Number" | "Date" | "Long Text";
   required: boolean;
+  module: string;
   screen: string;
-  section: "Primary Information" | "Classification" | "Additional Information" | "Follow-ups";
+  section: string;
 }
 
 export const defaultLeadFieldOrder = {
@@ -75,6 +77,7 @@ export const readLeadCustomFields = (): LeadCustomField[] => {
       label: field.label ?? "Custom field",
       type: field.type ?? "Text / Char",
       required: Boolean(field.required),
+      module: field.module ?? "CRM & Customer Engagement",
       screen: field.screen ?? "Lead Management",
       section: field.section ?? "Additional Information",
     }));
@@ -86,4 +89,17 @@ export const readLeadCustomFields = (): LeadCustomField[] => {
 export const saveLeadCustomFields = (fields: LeadCustomField[]) => {
   window.localStorage.setItem(LEAD_CUSTOM_FIELDS_KEY, JSON.stringify(fields));
   window.dispatchEvent(new CustomEvent<LeadCustomField[]>(LEAD_CUSTOM_FIELDS_KEY, { detail: fields }));
+};
+
+export const readLeadFieldVisibility = (): Record<string, boolean> => {
+  try {
+    return JSON.parse(window.localStorage.getItem(LEAD_FIELD_VISIBILITY_KEY) ?? "{}") as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+};
+
+export const saveLeadFieldVisibility = (visibility: Record<string, boolean>) => {
+  window.localStorage.setItem(LEAD_FIELD_VISIBILITY_KEY, JSON.stringify(visibility));
+  window.dispatchEvent(new CustomEvent<Record<string, boolean>>(LEAD_FIELD_VISIBILITY_KEY, { detail: visibility }));
 };

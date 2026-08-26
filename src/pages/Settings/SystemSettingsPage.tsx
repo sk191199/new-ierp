@@ -1,14 +1,17 @@
 import AddIcon from "@mui/icons-material/Add";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import {
   Box,
   Button,
@@ -28,6 +31,7 @@ import {
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useState } from "react";
@@ -35,13 +39,15 @@ import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import {
   readLeadCustomFields,
   readLeadFieldOrder,
+  readLeadFieldVisibility,
   saveLeadCustomFields,
   saveLeadFieldOrder,
+  saveLeadFieldVisibility,
   type LeadCustomField,
-  type LeadFieldOrder,
 } from "@/pages/CRM/Leads/leadFieldOrder";
 import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
+import { readSectionsByScreen, readSettingsCatalog, saveSectionsByScreen, saveSettingsCatalog, type SettingsCatalog } from "./settingsCatalog";
 
 const settingsSections = [
   { label: "General Workspace", icon: TuneOutlinedIcon },
@@ -55,30 +61,6 @@ const settingsSections = [
   { label: "User Access Control", icon: PersonOutlineOutlinedIcon },
   { label: "System Scheduling", icon: CalendarMonthOutlinedIcon },
 ];
-
-const modules = [
-  "System & Administration",
-  "Sales & Distribution",
-  "Procurement Hub",
-  "Inventory & Supply Chain",
-  "Finance & Treasury",
-  "CRM & Customer Engagement",
-  "HR & Payroll",
-  "Project Management",
-  "Manufacturing",
-];
-
-const screensByModule: Record<string, string[]> = {
-  "System & Administration": ["Company (Tenant) Setup", "Subsidiaries", "Branches / Locations", "Document & Number Series", "Unit of Measure (UOM)"],
-  "CRM & Customer Engagement": [
-    "CRM Mission Control",
-    "Lead Management",
-    "Contact Directory",
-    "Opportunity Pipeline",
-    "Activities & Follow-Ups",
-    "Campaign Manager",
-  ],
-};
 
 const fallbackScreens = ["Overview", "Configuration"];
 
@@ -143,17 +125,24 @@ const initialFields = [
   },
 ].map((section) => ({
   ...section,
-  fields: section.fields.map(([label, id, type, required]) => ({ label, id, type, required, visible: true })),
+  fields: section.fields.map((field) => {
+    const [label, id, type, required] = field as [string, string, string, boolean];
+    return { label, id, type, required, visible: true };
+  }),
 })) satisfies ArchitectSection[];
 
 const applySavedOrder = (sections: ArchitectSection[]): ArchitectSection[] => {
   const savedOrder = readLeadFieldOrder();
   const savedCustomFields = readLeadCustomFields();
-  return sections.map((section) => {
+  const visibility = readLeadFieldVisibility();
+  const mappedSections = sections.map((section) => {
     const sectionCustomFields = savedCustomFields
-      .filter((field) => field.screen === "Lead Management" && field.section === section.title)
+      .filter((field) => field.module === "CRM & Customer Engagement" && field.screen === "Lead Management" && field.section === section.title)
       .map((field) => ({ ...field, visible: true }));
-    const sectionFields = [...section.fields, ...sectionCustomFields];
+    const sectionFields = [...section.fields, ...sectionCustomFields].map((field) => ({
+      ...field,
+      visible: visibility[field.id] ?? field.visible,
+    }));
     const order = section.title === "Primary Information" ? savedOrder.primary : section.title === "Follow-ups" ? savedOrder.followUps : [];
     if (!order.length) {
       return { ...section, fields: sectionFields };
@@ -176,6 +165,14 @@ const applySavedOrder = (sections: ArchitectSection[]): ArchitectSection[] => {
       }),
     };
   });
+  const customSections = Array.from(new Set(savedCustomFields.filter((field) => field.module === "CRM & Customer Engagement" && field.screen === "Lead Management").map((field) => field.section)))
+    .filter((title) => !mappedSections.some((section) => section.title === title))
+    .map((title) => ({
+      title,
+      description: "Custom Lead Management fields.",
+      fields: savedCustomFields.filter((field) => field.module === "CRM & Customer Engagement" && field.screen === "Lead Management" && field.section === title).map((field) => ({ ...field, visible: visibility[field.id] ?? true })),
+    }));
+  return [...mappedSections, ...customSections];
 };
 
 const dummyFields: ArchitectSection[] = [
@@ -190,11 +187,21 @@ export const SystemSettingsPage = () => {
   const [activeSection, setActiveSection] = useState("Screen Architect");
   const [activeModule, setActiveModule] = useState("CRM & Customer Engagement");
   const [activeScreen, setActiveScreen] = useState("Lead Management");
+  const [catalog, setCatalog] = useState<SettingsCatalog>(() => readSettingsCatalog());
   const [fields, setFields] = useState(() => applySavedOrder(initialFields));
   const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
   const [customFieldDialogOpen, setCustomFieldDialogOpen] = useState(false);
-  const [customFieldDraft, setCustomFieldDraft] = useState({ label: "", type: "Text / Char" as LeadCustomField["type"], required: false, screen: "Lead Management", section: "Additional Information" as LeadCustomField["section"] });
+  const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
+  const [screenDialogOpen, setScreenDialogOpen] = useState(false);
+  const [moduleName, setModuleName] = useState("");
+  const [screenName, setScreenName] = useState("");
+  const [sectionsByScreen, setSectionsByScreen] = useState(readSectionsByScreen);
+  const [customFieldDraft, setCustomFieldDraft] = useState({ label: "", type: "Text / Char" as LeadCustomField["type"], required: false, module: "CRM & Customer Engagement", screen: "Lead Management", section: "Additional Information" });
+  const [newSectionName, setNewSectionName] = useState("");
+  const [customFieldModule, setCustomFieldModule] = useState(activeModule);
   const dispatch = useAppDispatch();
+  const modules = catalog.modules;
+  const screensByModule = catalog.screensByModule;
 
   const toggleField = (id: string) => {
     setFields((current) => current.map((section) => ({
@@ -206,6 +213,28 @@ export const SystemSettingsPage = () => {
   const selectModule = (module: string) => {
     setActiveModule(module);
     setActiveScreen((screensByModule[module] ?? fallbackScreens)[0]);
+  };
+
+  const addModule = () => {
+    const name = moduleName.trim();
+    if (!name || catalog.modules.includes(name)) return;
+    const next = { ...catalog, modules: [...catalog.modules, name], screensByModule: { ...catalog.screensByModule, [name]: [] } };
+    setCatalog(next);
+    saveSettingsCatalog(next);
+    setModuleName("");
+    setModuleDialogOpen(false);
+    dispatch(toastShown({ message: "Module added successfully.", severity: "success" }));
+  };
+
+  const addScreen = () => {
+    const name = screenName.trim();
+    if (!name || (screensByModule[activeModule] ?? []).includes(name)) return;
+    const next = { ...catalog, screensByModule: { ...screensByModule, [activeModule]: [...(screensByModule[activeModule] ?? []), name] } };
+    setCatalog(next);
+    saveSettingsCatalog(next);
+    setScreenName("");
+    setScreenDialogOpen(false);
+    dispatch(toastShown({ message: "Screen added successfully.", severity: "success" }));
   };
 
   const reorderFields = (sectionTitle: string, sourceId: string, targetId: string) => {
@@ -245,6 +274,7 @@ export const SystemSettingsPage = () => {
       primary: fields.find((section) => section.title === "Primary Information")?.fields.map((field) => field.id) ?? [],
       followUps: fields.find((section) => section.title === "Follow-ups")?.fields.map((field) => field.id) ?? [],
     });
+    saveLeadFieldVisibility(Object.fromEntries(fields.flatMap((section) => section.fields.map((field) => [field.id, field.visible]))));
     saveLeadCustomFields(customFields);
     dispatch(toastShown({ message: "Lead Management architecture updated successfully.", severity: "success" }));
   };
@@ -256,17 +286,27 @@ export const SystemSettingsPage = () => {
     if (!label) {
       return;
     }
-    const field = { ...customFieldDraft, id: `custom_${Date.now()}`, label };
-    setCustomFields((current) => [...current, field]);
+    const section = customFieldDraft.section === "__new__" ? newSectionName.trim() : customFieldDraft.section;
+    if (!section) return;
+    const nextSections = { ...sectionsByScreen, [customFieldDraft.screen]: [...(sectionsByScreen[customFieldDraft.screen] ?? []), ...(sectionsByScreen[customFieldDraft.screen]?.includes(section) ? [] : [section])] };
+    setSectionsByScreen(nextSections);
+    saveSectionsByScreen(nextSections);
+    const field = { ...customFieldDraft, section, id: `custom_${Date.now()}`, label };
+    const nextCustomFields = [...customFields, field];
+    setCustomFields(nextCustomFields);
+    saveLeadCustomFields(nextCustomFields);
     if (field.screen === "Lead Management") {
-      setFields((current) => current.map((section) =>
-        section.title === field.section
-          ? { ...section, fields: [...section.fields, { ...field, visible: true }] }
-          : section,
-      ));
+      setFields((current) => {
+        const exists = current.some((section) => section.title === field.section);
+        return exists
+          ? current.map((section) => section.title === field.section ? { ...section, fields: [...section.fields, { ...field, visible: true }] } : section)
+          : [...current, { title: field.section, description: "Custom Lead Management fields.", fields: [{ ...field, visible: true }] }];
+      });
     }
-    setCustomFieldDraft({ label: "", type: "Text / Char", required: false, screen: "Lead Management", section: "Additional Information" });
+    setCustomFieldDraft({ label: "", type: "Text / Char", required: false, module: "CRM & Customer Engagement", screen: "Lead Management", section: "Additional Information" });
+    setNewSectionName("");
     setCustomFieldDialogOpen(false);
+    dispatch(toastShown({ message: "Custom field added successfully.", severity: "success" }));
   };
 
   return (
@@ -327,7 +367,21 @@ export const SystemSettingsPage = () => {
                 onReorder={reorderFields}
                 onSave={commitOrder}
                 onRevert={revertOrder}
-                onAddCustomField={() => setCustomFieldDialogOpen(true)}
+                onAddCustomField={() => {
+                  const availableScreens = screensByModule[activeModule] ?? [];
+                  if (!availableScreens.length) {
+                    dispatch(toastShown({ message: "No screens are available for this module.", severity: "info" }));
+                    return;
+                  }
+                  setCustomFieldModule(activeModule);
+                  setCustomFieldDraft((current) => ({ ...current, module: activeModule, screen: activeScreen, section: (sectionsByScreen[activeScreen] ?? ["Additional Information"])[0] }));
+                  setCustomFieldDialogOpen(true);
+                }}
+                onAddModule={() => setModuleDialogOpen(true)}
+                onAddScreen={() => setScreenDialogOpen(true)}
+                modules={modules}
+                screensByModule={screensByModule}
+                customFields={customFields}
               />
             ) : (
               <Stack alignItems="flex-start" gap={1} sx={{ py: 4 }}>
@@ -346,27 +400,45 @@ export const SystemSettingsPage = () => {
         </Card>
       </Box>
       <Dialog open={customFieldDialogOpen} onClose={() => setCustomFieldDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Add custom field to Lead Management</DialogTitle>
+        <DialogTitle>Add custom field</DialogTitle>
         <DialogContent>
           <Stack gap={2} sx={{ pt: 1 }}>
             <TextField
               select
-              label="Screen / Form"
-              value={customFieldDraft.screen}
-              onChange={(event) => setCustomFieldDraft((current) => ({ ...current, screen: event.target.value }))}
+              label="Module"
+              value={customFieldModule}
+              onChange={(event) => {
+                const module = event.target.value;
+                const nextScreens = screensByModule[module] ?? [];
+                setCustomFieldModule(module);
+                setCustomFieldDraft((current) => ({ ...current, module, screen: nextScreens[0] ?? "", section: "" }));
+              }}
               fullWidth
             >
-              {(screensByModule["CRM & Customer Engagement"] ?? []).map((screen) => <MenuItem key={screen} value={screen}>{screen}</MenuItem>)}
+              {modules.map((module) => <MenuItem key={module} value={module}>{module}</MenuItem>)}
+            </TextField>
+            <TextField
+              select
+              label="Screen / Form"
+              value={customFieldDraft.screen}
+              onChange={(event) => setCustomFieldDraft((current) => ({ ...current, screen: event.target.value, section: (sectionsByScreen[event.target.value] ?? ["Additional Information"])[0] }))}
+              fullWidth
+            >
+              {(screensByModule[customFieldModule] ?? []).map((screen) => <MenuItem key={screen} value={screen}>{screen}</MenuItem>)}
             </TextField>
             <TextField
               select
               label="Section"
               value={customFieldDraft.section}
-              onChange={(event) => setCustomFieldDraft((current) => ({ ...current, section: event.target.value as LeadCustomField["section"] }))}
+              onChange={(event) => setCustomFieldDraft((current) => ({ ...current, section: event.target.value }))}
               fullWidth
             >
-              {(["Primary Information", "Classification", "Additional Information", "Follow-ups"] as const).map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
+              {(sectionsByScreen[customFieldDraft.screen] ?? []).map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
+              <MenuItem value="__new__">Add new section</MenuItem>
             </TextField>
+            {customFieldDraft.section === "__new__" ? (
+              <TextField label="New section name" value={newSectionName} onChange={(event) => setNewSectionName(event.target.value)} fullWidth />
+            ) : null}
             <TextField
               autoFocus
               label="Field label"
@@ -394,6 +466,26 @@ export const SystemSettingsPage = () => {
           <Button variant="contained" onClick={addCustomField} disabled={!customFieldDraft.label.trim()}>Add field</Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={moduleDialogOpen} onClose={() => setModuleDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Add module</DialogTitle>
+        <DialogContent>
+          <TextField autoFocus fullWidth label="Module name" value={moduleName} onChange={(event) => setModuleName(event.target.value)} sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModuleDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={addModule} disabled={!moduleName.trim()}>Add module</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={screenDialogOpen} onClose={() => setScreenDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Add screen to {activeModule}</DialogTitle>
+        <DialogContent>
+          <TextField autoFocus fullWidth label="Screen name" value={screenName} onChange={(event) => setScreenName(event.target.value)} sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScreenDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={addScreen} disabled={!screenName.trim()}>Add screen</Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 };
@@ -409,6 +501,11 @@ const ScreenArchitect = ({
   onSave,
   onRevert,
   onAddCustomField,
+  onAddModule,
+  onAddScreen,
+  modules,
+  screensByModule,
+  customFields,
 }: {
   activeModule: string;
   activeScreen: string;
@@ -420,6 +517,11 @@ const ScreenArchitect = ({
   onSave: () => void;
   onRevert: () => void;
   onAddCustomField: () => void;
+  onAddModule: () => void;
+  onAddScreen: () => void;
+  modules: string[];
+  screensByModule: Record<string, string[]>;
+  customFields: LeadCustomField[];
 }) => {
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
@@ -439,7 +541,18 @@ const ScreenArchitect = ({
       </Button>
     </Stack>
 
-    <ChipGroup items={modules} active={activeModule} onChange={onModuleChange} />
+    <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+      <ChipGroup items={modules} active={activeModule} onChange={onModuleChange} />
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<AddCircleOutlineIcon />}
+        onClick={onAddModule}
+        sx={{ color: "success.main", borderColor: "success.main", "&:hover": { color: "success.dark", borderColor: "success.main", bgcolor: "action.hover" } }}
+      >
+        Add module
+      </Button>
+    </Stack>
 
     <Divider />
 
@@ -456,6 +569,7 @@ const ScreenArchitect = ({
         variant="outlined"
         size="small"
         startIcon={<AddIcon />}
+        onClick={onAddScreen}
         sx={{ mt: 1.5, color: "success.main", borderColor: "success.main" }}
       >
         Add screen to {activeModule}
@@ -465,8 +579,8 @@ const ScreenArchitect = ({
     {activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management" ? (
       <Stack gap={2}>
         {fields.map((section) => (
-          <Accordion key={section.title} defaultExpanded disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
-            <AccordionSummary sx={{ px: 2, minHeight: 62 }}>
+          <Accordion key={section.title} defaultExpanded={false} disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2, minHeight: 62 }}>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ textTransform: "uppercase" }}>{section.title}</Typography>
                 <Typography variant="caption" color="text.secondary">{section.description}</Typography>
@@ -479,8 +593,11 @@ const ScreenArchitect = ({
                     key={field.id}
                     field={field}
                     draggable={!field.required}
-                    disabled={field.required}
-                    onToggle={() => onFieldToggle(field.id)}
+                    onToggle={() => {
+                      if (!field.required) {
+                        onFieldToggle(field.id);
+                      }
+                    }}
                     onDragStart={() => setDraggedField(field.required ? null : field.id)}
                     onDragEnd={() => setDraggedField(null)}
                     onDrop={() => {
@@ -497,14 +614,26 @@ const ScreenArchitect = ({
         ))}
       </Stack>
     ) : (
-      <Stack gap={1} sx={{ py: 2 }}>
+      <Stack gap={2} sx={{ py: 2 }}>
         <Typography variant="h6" sx={{ textTransform: "uppercase" }}>{activeScreen}</Typography>
         <Typography variant="body2" color="text.secondary">
           This screen is linked to the selected module and is reserved for configuration.
         </Typography>
-        {dummyFields.map((section) => section.fields.map((field) => (
+        {Array.from(new Set(customFields.filter((field) => field.module === activeModule && field.screen === activeScreen).map((field) => field.section))).map((section) => (
+          <Accordion key={section} defaultExpanded={false} disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}><Typography variant="h6">{section}</Typography></AccordionSummary>
+            <AccordionDetails sx={{ px: 1 }}>
+              <Stack gap={1.25}>
+                {customFields.filter((field) => field.module === activeModule && field.screen === activeScreen && field.section === section).map((field) => (
+                  <FieldRow key={field.id} field={{ ...field, visible: true }} onToggle={() => {}} />
+                ))}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        ))}
+        {customFields.every((field) => field.module !== activeModule || field.screen !== activeScreen) ? dummyFields.map((section) => section.fields.map((field) => (
           <FieldRow key={field.id} field={field} onToggle={() => onFieldToggle(field.id)} />
-        )))}
+        ))) : null}
       </Stack>
     )}
 
@@ -569,12 +698,16 @@ const FieldRow = ({
     onDrop={onDrop}
     sx={{
       display: "grid",
-      gridTemplateColumns: { xs: "1fr auto", md: "42px minmax(100px, 1fr) minmax(120px, 1fr) minmax(80px, 0.7fr) auto" },
+      gridTemplateColumns: {
+        xs: "1fr auto",
+        md: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
+      },
       gap: { xs: 1, md: 2 },
       alignItems: "center",
       p: { xs: 1.25, md: 1.5 },
       bgcolor: "action.hover",
       borderRadius: 1.5,
+      "& > *": { minWidth: 0 },
       cursor: draggable ? "grab" : "default",
       "&:active": { cursor: draggable ? "grabbing" : "default" },
     }}
@@ -582,25 +715,27 @@ const FieldRow = ({
     <Box sx={{ display: { xs: "none", md: "grid" }, placeItems: "center", width: 34, height: 34, borderRadius: 1.25, bgcolor: "primary.light", color: "primary.contrastText" }}>
       {draggable ? <DragIndicatorIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
     </Box>
-    <Box>
+    <Box sx={{ minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary">Label</Typography>
       <Typography variant="body2" sx={{ fontWeight: 800, textTransform: "uppercase" }}>{field.label}</Typography>
     </Box>
-    <Box sx={{ display: { xs: "none", md: "block" } }}>
+    <Stack direction="row" alignItems="center" gap={1} sx={{ display: { xs: "none", md: "flex" }, minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary">Data type</Typography>
       <Chip label={field.type} size="small" variant="outlined" />
-    </Box>
-    <Box sx={{ display: { xs: "none", md: "block" } }}>
+    </Stack>
+    <Box sx={{ display: { xs: "none", md: "block" }, minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary">Rules architect</Typography>
       <Typography variant="caption" sx={{ display: "block", color: field.required ? "primary.main" : "text.secondary", fontWeight: 800, textTransform: "uppercase" }}>
         {field.required ? "Required" : "Optional"}
       </Typography>
     </Box>
-    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={1}>
+    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={1} sx={{ minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }}>{field.id}</Typography>
-      <IconButton size="small" aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`} onClick={onToggle} color={field.visible ? "primary" : "default"}>
-        <VisibilityOutlinedIcon fontSize="small" />
-      </IconButton>
+      <Tooltip title={field.visible ? "Hide field" : "Show field"}>
+        <IconButton size="small" aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`} onClick={onToggle} color={field.visible ? "primary" : "default"}>
+          {field.visible ? <VisibilityOutlinedIcon fontSize="small" /> : <VisibilityOffOutlinedIcon fontSize="small" />}
+        </IconButton>
+      </Tooltip>
     </Stack>
   </Box>
 );

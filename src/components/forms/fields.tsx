@@ -650,11 +650,16 @@ export const BooleanField = ({
 export const FieldGrid = ({
   children,
   fieldOrder,
+  fieldVisibility,
+  requiredFieldKeys,
 }: {
   children: ReactNode;
   fieldOrder?: string[];
+  fieldVisibility?: Record<string, boolean>;
+  requiredFieldKeys?: string[];
 }) => {
   const orderMap = new Map((fieldOrder ?? []).map((fieldKey, index) => [fieldKey, index]));
+  const requiredKeys = new Set(requiredFieldKeys ?? []);
 
   return (
   <Stack
@@ -682,8 +687,9 @@ export const FieldGrid = ({
 
       const fieldKey = child.props.name as string | undefined;
       const order = fieldKey ? orderMap.get(fieldKey) ?? fieldOrder?.length ?? 0 : fieldOrder?.length ?? 0;
+      const hidden = fieldKey ? fieldVisibility?.[fieldKey] === false && !requiredKeys.has(fieldKey) : false;
       return (
-        <Box key={fieldKey ?? String(child.key)} data-field-key={fieldKey} sx={{ order, minWidth: 0 }}>
+        <Box key={fieldKey ?? String(child.key)} data-field-key={fieldKey} sx={{ order, minWidth: 0, display: hidden ? "none" : undefined }}>
           {child}
         </Box>
       );
