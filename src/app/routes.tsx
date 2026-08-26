@@ -46,6 +46,11 @@ const ModulePlaceholder = lazy(() =>
     default: module.ModulePlaceholder,
   })),
 );
+const SystemSettingsPage = lazy(() =>
+  import("@/pages/Settings/SystemSettingsPage").then((module) => ({
+    default: module.SystemSettingsPage,
+  })),
+);
 
 const RouteFallback = () => <LoadingState label="Loading workspace…" minHeight={360} />;
 
@@ -148,8 +153,8 @@ export const AppRoutes = () => {
               element: <ModulePlaceholder title="Roles" module="Administration" />,
             },
             {
-              path: ROUTES.settings,
-              element: <ModulePlaceholder title="Settings" module="System" />,
+              path: ROUTES.settings.system,
+              element: <SystemSettingsPage />,
             },
           ],
         },

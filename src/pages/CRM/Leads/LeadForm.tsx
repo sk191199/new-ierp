@@ -21,7 +21,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   CreatableSelectField,
@@ -51,6 +51,14 @@ import {
   leadSubsidiaryOptions,
 } from "./leadOptions";
 import { LeadFollowUpHistory, type FollowUpEditData } from "./components/LeadFollowUpHistory";
+import {
+  LEAD_CUSTOM_FIELDS_KEY,
+  LEAD_FIELD_ORDER_KEY,
+  readLeadCustomFields,
+  readLeadFieldOrder,
+  type LeadCustomField,
+  type LeadFieldOrder,
+} from "./leadFieldOrder";
 
 export const LEAD_FORM_ID = "lead-editor-form";
 
@@ -84,6 +92,44 @@ export const LeadForm = ({
   const [attempted, setAttempted] = useState(false);
   const [showNewFollowUp, setShowNewFollowUp] = useState(mode === "create");
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
+  const [fieldOrder, setFieldOrder] = useState<LeadFieldOrder>(readLeadFieldOrder);
+  const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+
+  const renderCustomFields = (section: LeadCustomField["section"]) =>
+    customFields
+      .filter((field) => field.screen === "Lead Management" && field.section === section)
+      .map((field) => (
+        <TextFieldControl
+          key={field.id}
+          name={field.id}
+          label={field.label}
+          required={field.required}
+          type={field.type === "Number" ? "number" : field.type === "Date" ? "date" : "text"}
+          multiline={field.type === "Long Text"}
+          minRows={field.type === "Long Text" ? 3 : undefined}
+          value={customValues[field.id] ?? ""}
+          onChange={(next) => setCustomValues((current) => ({ ...current, [field.id]: next }))}
+        />
+      ));
+
+  useEffect(() => {
+    const updateFieldOrder = (event: Event) => {
+      const customEvent = event as CustomEvent<LeadFieldOrder>;
+      setFieldOrder(customEvent.detail ?? readLeadFieldOrder());
+    };
+
+    window.addEventListener(LEAD_FIELD_ORDER_KEY, updateFieldOrder);
+    const updateCustomFields = (event: Event) => {
+      const customEvent = event as CustomEvent<LeadCustomField[]>;
+      setCustomFields(customEvent.detail ?? readLeadCustomFields());
+    };
+    window.addEventListener(LEAD_CUSTOM_FIELDS_KEY, updateCustomFields);
+    return () => {
+      window.removeEventListener(LEAD_FIELD_ORDER_KEY, updateFieldOrder);
+      window.removeEventListener(LEAD_CUSTOM_FIELDS_KEY, updateCustomFields);
+    };
+  }, []);
 
   // ============================================================
   // DIALOG STATES
@@ -387,9 +433,9 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <FieldGrid>
+            <FieldGrid fieldOrder={fieldOrder.primary}>
               <TextFieldControl
-                name="company"
+                name="companyName"
                 label="Company Name"
                 required
                 value={value.companyName}
@@ -502,18 +548,18 @@ export const LeadForm = ({
                 options={leadRevenueOptions}
                 includeEmpty
               />
+              <TextFieldControl
+                name="address"
+                label="Address"
+                required
+                multiline
+                minRows={3}
+                value={value.address}
+                onChange={(next) => patch("address", next)}
+                error={attempted ? errors.address : undefined}
+              />
+              {renderCustomFields("Primary Information")}
             </FieldGrid>
-
-            <TextFieldControl
-              name="address"
-              label="Address"
-              required
-              multiline
-              minRows={3}
-              value={value.address}
-              onChange={(next) => patch("address", next)}
-              error={attempted ? errors.address : undefined}
-            />
           </Stack>
         </FormSection>
 
@@ -542,6 +588,7 @@ export const LeadForm = ({
               options={leadSubsidiaryOptions}
               includeEmpty
             />
+            {renderCustomFields("Classification")}
           </Stack>
         </FormSection>
 
@@ -579,6 +626,7 @@ export const LeadForm = ({
               value={value.notes}
               onChange={(next) => patch("notes", next)}
             />
+            {renderCustomFields("Additional Information")}
           </Stack>
         </FormSection>
 
@@ -623,7 +671,7 @@ export const LeadForm = ({
                 pb: 1,
               }}
             >
-              <FieldGrid>
+              <FieldGrid fieldOrder={fieldOrder.followUps}>
                 {/* ========================================================
                     FOLLOW-UP DATE
                     Automatically uses today's date.
@@ -687,6 +735,8 @@ export const LeadForm = ({
 
               <TextField
                 fullWidth
+                name="followUpFile"
+                data-field-key="followUpFile"
                 label="Follow-up File"
                 type="file"
                 slotProps={{
@@ -752,12 +802,6 @@ export const LeadForm = ({
                   });
                 }}
               />
-            </FieldGrid>
-
-            {/* ==========================================================
-                FOLLOW-UP NOTES
-                ========================================================== */}
-
               <TextFieldControl
                 name="followUpNotes"
                 label="Follow-up Notes"
@@ -766,6 +810,12 @@ export const LeadForm = ({
                 value={value.followUpNotes}
                 onChange={(next) => patch("followUpNotes", next)}
               />
+              {renderCustomFields("Follow-ups")}
+            </FieldGrid>
+
+            {/* ==========================================================
+                FOLLOW-UP NOTES
+                ========================================================== */}
               {mode === "edit" ? (
                 <Stack direction="row" justifyContent="flex-end" gap={1}>
                   <Button type="button" variant="outlined" onClick={clearNewFollowUp}>

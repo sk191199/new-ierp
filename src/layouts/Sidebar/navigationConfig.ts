@@ -288,8 +288,8 @@ export const navigationItems: NavigationItem[] = [
   },
 
   {
-    label: "Settings",
-    path: ROUTES.settings,
+    label: "System Settings",
+    path: ROUTES.settings.system,
     icon: SettingsOutlinedIcon,
   },
 ];
