@@ -47,6 +47,13 @@ const ModulePlaceholder = lazy(() =>
   })),
 );
 
+const SettingsMain = lazy(() =>
+  import("@/pages/Settings/SettingsMain").then((module) => ({
+    default: module.default,
+  })),
+);
+
+
 const RouteFallback = () => <LoadingState label="Loading workspace…" minHeight={360} />;
 
 export const AppRoutes = () => {
@@ -149,7 +156,7 @@ export const AppRoutes = () => {
             },
             {
               path: ROUTES.settings,
-              element: <ModulePlaceholder title="Settings" module="System" />,
+              element: <SettingsMain />,
             },
           ],
         },

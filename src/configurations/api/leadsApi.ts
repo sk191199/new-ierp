@@ -115,7 +115,7 @@ export const updateFollowUp = async (
   data: FollowUpUpdate,
 ): Promise<LeadFollowUp> => {
   const response = await http.put(
-    API_ENDPOINTS.opportunityFollowUps(followUpId),
+    API_ENDPOINTS.followUps(followUpId),
     buildUpdateFollowUpPayload(data),
   );
   return unwrapData<LeadFollowUp>(response.data);

@@ -26,7 +26,7 @@ export const API_ENDPOINTS = {
     followups: (leadId: string) => `/api/crm/leads/${leadId}/followups`,
     timeline: (leadId: string) => `/api/crm/leads/${leadId}/timeline`,
   },
-  opportunityFollowUps: (id: string) => `/api/crm/opportunity-followups/${id}`,
+  followUps: (id: string) => `/api/crm/followups/${id}`,
   opportunities: {
     list: "/api/crm/opportunities",
     byId: (id: string) => `/api/crm/opportunities/${id}`,
