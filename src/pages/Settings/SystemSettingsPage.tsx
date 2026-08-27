@@ -869,10 +869,11 @@ const FieldRow = ({
       display: "grid",
       gridTemplateColumns: {
         xs: "40px minmax(0, 1fr)",
-        sm: "42px minmax(140px, 1.3fr) minmax(110px, 0.85fr) minmax(105px, 0.85fr) minmax(118px, 0.8fr)",
+        sm: "42px minmax(120px, 1.3fr) minmax(92px, 0.85fr) minmax(88px, 0.85fr) minmax(96px, 0.8fr)",
+        md: "36px minmax(0, 1fr) minmax(82px, 0.85fr) minmax(76px, 0.85fr) minmax(78px, 0.8fr)",
         xl: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
       },
-      gap: { xs: 1.25, md: 2 },
+      gap: { xs: 1.25, md: 1.25, xl: 2 },
       alignItems: "center",
       p: { xs: 1.5, sm: 1.5 },
       bgcolor: "background.paper",
@@ -915,14 +916,14 @@ const FieldRow = ({
         {field.required ? "Required" : "Optional"}
       </Typography>
     </Box>
-    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={1} sx={{ minWidth: 0 }}>
+    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={{ xs: 1, md: 0.25, xl: 1 }} sx={{ minWidth: 0 }}>
       <Box>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.08em" }}>
           Action
         </Typography>
       </Box>
       <Tooltip title={field.visible ? "Hide field" : "Show field"}>
-        <IconButton size="small" aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`} onClick={onToggle} color={field.visible ? "primary" : "default"}>
+        <IconButton size="small" aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`} onClick={onToggle} color={field.visible ? "primary" : "default"} sx={{ flexShrink: 0, p: { md: 0.5, xl: 1 } }}>
           {field.visible ? <VisibilityOutlinedIcon fontSize="small" /> : <VisibilityOffOutlinedIcon fontSize="small" />}
         </IconButton>
       </Tooltip>
