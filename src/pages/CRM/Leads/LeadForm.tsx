@@ -223,6 +223,13 @@ export const LeadForm = ({
       next.address = "Address is required.";
     }
 
+    if (
+      value.website &&
+      !/^(?:(?:https?|http):\/\/)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?::\d{1,5})?(?:[/?#][^\s]*)?$/i.test(value.website)
+    ) {
+      next.website = "Enter a valid website or domain.";
+    }
+
     // ============================================================
     // FOLLOW-UP DATE VALIDATION
     // Follow-up Date must always be today's date.
@@ -501,8 +508,9 @@ export const LeadForm = ({
                 label="Phone Number"
                 required
                 type="tel"
+                inputMode="numeric"
                 value={value.phone}
-                onChange={(next) => patch("phone", next)}
+                onChange={(next) => patch("phone", next.replace(/\D/g, ""))}
                 error={attempted ? errors.phone : undefined}
               />
 
@@ -570,9 +578,10 @@ export const LeadForm = ({
               <TextFieldControl
                 name="website"
                 label="Website"
-                type="url"
+                type="text"
                 value={value.website}
                 onChange={(next) => patch("website", next)}
+                error={attempted ? errors.website : undefined}
               />
 
               <SelectField
@@ -624,15 +633,17 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            {fieldVisibility.subsidiary !== false ? <SelectField
-              name="subsidiary"
-              label="Subsidiary"
-              value={value.subsidiary}
-              onChange={(next) => patch("subsidiary", next)}
-              options={leadSubsidiaryOptions}
-              includeEmpty
-            /> : null}
-            {renderCustomFields("Classification", fieldVisibility)}
+            <FieldGrid fieldOrder={fieldOrder.classification} fieldVisibility={fieldVisibility}>
+              {fieldVisibility.subsidiary !== false ? <SelectField
+                name="subsidiary"
+                label="Subsidiary"
+                value={value.subsidiary}
+                onChange={(next) => patch("subsidiary", next)}
+                options={leadSubsidiaryOptions}
+                includeEmpty
+              /> : null}
+              {renderCustomFields("Classification", fieldVisibility)}
+            </FieldGrid>
           </Stack>
         </FormSection>
 
@@ -653,24 +664,26 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            {fieldVisibility.projectDescription !== false ? <TextFieldControl
-              name="projectDescription"
-              label="Project Description"
-              multiline
-              minRows={4}
-              value={value.projectDescription}
-              onChange={(next) => patch("projectDescription", next)}
-            /> : null}
+            <FieldGrid fieldOrder={fieldOrder.additionalInformation} fieldVisibility={fieldVisibility}>
+              {fieldVisibility.projectDescription !== false ? <TextFieldControl
+                name="projectDescription"
+                label="Project Description"
+                multiline
+                minRows={4}
+                value={value.projectDescription}
+                onChange={(next) => patch("projectDescription", next)}
+              /> : null}
 
-            {fieldVisibility.notes !== false ? <TextFieldControl
-              name="notes"
-              label="Notes"
-              multiline
-              minRows={4}
-              value={value.notes}
-              onChange={(next) => patch("notes", next)}
-            /> : null}
-            {renderCustomFields("Additional Information", fieldVisibility)}
+              {fieldVisibility.notes !== false ? <TextFieldControl
+                name="notes"
+                label="Notes"
+                multiline
+                minRows={4}
+                value={value.notes}
+                onChange={(next) => patch("notes", next)}
+              /> : null}
+              {renderCustomFields("Additional Information", fieldVisibility)}
+            </FieldGrid>
           </Stack>
         </FormSection>
 

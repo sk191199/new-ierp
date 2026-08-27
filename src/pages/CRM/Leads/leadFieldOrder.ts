@@ -28,6 +28,8 @@ export const defaultLeadFieldOrder = {
     "annualRevenue",
     "address",
   ],
+  classification: ["subsidiary"],
+  additionalInformation: ["projectDescription", "notes"],
   followUps: ["followUpDate", "newFollowUpDate", "followUpStatus", "followUpType", "followUpFile", "followUpNotes"],
 };
 
@@ -41,15 +43,34 @@ export const readLeadFieldOrder = (): LeadFieldOrder => {
   try {
     const stored = JSON.parse(window.localStorage.getItem(LEAD_FIELD_ORDER_KEY) ?? "null") as Partial<LeadFieldOrder> | null;
     const primaryOrder = stored?.primary?.length ? stored.primary : defaultLeadFieldOrder.primary;
-    const requiredPrimary = new Map(defaultLeadFieldOrder.primary.map((field, index) => [index, field]));
-    const optionalPrimary = primaryOrder.filter((field) => !requiredPrimaryHasPosition(field));
+    const optionalPrimary = primaryOrder.filter((field, index, order) =>
+      !requiredPrimaryHasPosition(field) && order.indexOf(field) === index,
+    );
+    const missingOptionalPrimary = defaultLeadFieldOrder.primary.filter(
+      (field) => !requiredPrimaryHasPosition(field) && !optionalPrimary.includes(field),
+    );
+    const optionalSequence = [...optionalPrimary, ...missingOptionalPrimary];
     let optionalIndex = 0;
+    const readSectionOrder = (storedOrder: string[] | undefined, defaultOrder: string[]) => {
+      const order = storedOrder?.length ? storedOrder : defaultOrder;
+      return [...new Set([...order, ...defaultOrder])];
+    };
 
     return {
-      primary: defaultLeadFieldOrder.primary.map((field, index) =>
-        requiredPrimary.get(index) === field ? field : optionalPrimary[optionalIndex++] ?? field,
+      primary: defaultLeadFieldOrder.primary.reduce<string[]>((order, field, index) => {
+        if (requiredPrimaryHasPosition(field)) {
+          order[index] = field;
+        } else {
+          order[index] = optionalSequence[optionalIndex++] ?? field;
+        }
+        return order;
+      }, []).concat(optionalSequence.slice(optionalIndex)),
+      classification: readSectionOrder(stored?.classification, defaultLeadFieldOrder.classification),
+      additionalInformation: readSectionOrder(
+        stored?.additionalInformation,
+        defaultLeadFieldOrder.additionalInformation,
       ),
-      followUps: stored?.followUps?.length ? stored.followUps : defaultLeadFieldOrder.followUps,
+      followUps: readSectionOrder(stored?.followUps, defaultLeadFieldOrder.followUps),
     };
   } catch {
     return defaultLeadFieldOrder;

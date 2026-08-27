@@ -21,10 +21,10 @@ export const API_ENDPOINTS = {
     me: " /api/v1/auth/me".trim(),
   },
   leads: {
-    list: "/api/crm/leads",
-    byId: (id: string) => `/api/crm/leads/${id}`,
-    followups: (leadId: string) => `/api/crm/leads/${leadId}/followups`,
-    timeline: (leadId: string) => `/api/crm/leads/${leadId}/timeline`,
+    list: "/api/v1/crm/leads",
+    byId: (id: string) => `/api/v1/crm/leads/${id}`,
+    followups: (leadId: string) => `/api/v1/crm/leads/${leadId}/followups`,
+    timeline: (leadId: string) => `/api/v1/crm/leads/${leadId}/timeline`,
   },
   followUps: (id: string) => `/api/crm/followups/${id}`,
   opportunities: {

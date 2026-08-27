@@ -50,7 +50,7 @@ export type BackendLead = {
   status: Lead["status"];
   subsidiary?: string;
   subsidiaryId?: string;
-  website?: string;
+  website?: string | null;
   notes?: string;
   createdAt?: string;
   createdBy?: string;
@@ -162,7 +162,7 @@ export const mapBackendLead = (lead: BackendLead): Lead => {
     createdDate: lead.createdAt?.slice(0, 10) ?? "",
     industry: lead.industry,
     projectType: lead.projectType,
-    website: lead.website,
+    website: typeof lead.website === "string" ? lead.website : "",
     companySize: lead.companySize,
     annualRevenue: annualRevenueOption(lead.annualRevenue),
     address: lead.address,

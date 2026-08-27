@@ -32,7 +32,20 @@ export const KpiCard = ({ metric }: KpiCardProps) => {
 
   if (Icon) {
     return (
-      <Card sx={{ height: "100%", borderRadius: 2.5 }}>
+      <Card
+        sx={(theme) => ({
+          height: "100%",
+          borderRadius: 2.5,
+          transition: theme.transitions.create(["transform", "box-shadow"], {
+            duration: theme.transitions.duration.standard,
+            easing: theme.transitions.easing.easeOut,
+          }),
+          "&:hover": {
+            transform: "translateY(-4px) scale(1.015)",
+            boxShadow: theme.shadows[6],
+          },
+        })}
+      >
         <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1}>
             <Box
@@ -78,7 +91,19 @@ export const KpiCard = ({ metric }: KpiCardProps) => {
   }
 
   return (
-    <Card sx={{ height: "100%" }}>
+    <Card
+      sx={(theme) => ({
+        height: "100%",
+        transition: theme.transitions.create(["transform", "box-shadow"], {
+          duration: theme.transitions.duration.standard,
+          easing: theme.transitions.easing.easeOut,
+        }),
+        "&:hover": {
+          transform: "translateY(-4px) scale(1.015)",
+          boxShadow: theme.shadows[6],
+        },
+      })}
+    >
       <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
         <Typography variant="caption" color="text.secondary">
           {metric.label.toUpperCase()}

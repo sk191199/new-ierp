@@ -298,7 +298,10 @@ const baseNavigationItems: NavigationItem[] = [
 export const navigationItems = (): NavigationItem[] => {
   const configured = readSettingsCatalog();
   const existingLabels = new Set(baseNavigationItems.map((item) => item.label));
-  const hiddenLegacyModules = new Set(["hr & payroll", "project management", "manufacturing", "shopping"]);
+  const hiddenLegacyModules = new Set([
+    "shopping",
+    "system & administration",
+  ]);
   const configuredItems = baseNavigationItems.map((item) => {
     const configuredScreens = configured.screensByModule[item.label];
     if (!configuredScreens?.length || !item.children) {

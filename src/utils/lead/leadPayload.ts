@@ -20,8 +20,8 @@ const localToday = (): string => {
 const toFollowUpIsoDateTime = (date: string): string =>
   new Date(`${date}T00:00:00`).toISOString();
 
-const normalizeWebsite = (website: string): string =>
-  website.trim().replace(/^htpp:\/\//i, "http://");
+const websiteForBackend = (website: string): string =>
+  website && /^(?:https?):\/\//i.test(website) ? website : website ? `https://${website}` : "";
 
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -46,7 +46,7 @@ export const buildCreateLeadPayload = (draft: LeadDraft) => {
     status: draft.status,
     subsidiary: draft.subsidiary,
     subsidiaryId: TEST_UUID,
-    website: normalizeWebsite(draft.website),
+    website: websiteForBackend(draft.website),
     notes: draft.notes,
     followUp: {
       activityType: draft.followUpType || "Call",
@@ -108,6 +108,6 @@ export const buildUpdateLeadPayload = (draft: LeadDraft) => ({
   status: draft.status,
   subsidiary: draft.subsidiary,
   subsidiaryId: draft.subsidiaryId && isUuid(draft.subsidiaryId) ? draft.subsidiaryId : undefined,
-  website: normalizeWebsite(draft.website),
+  website: websiteForBackend(draft.website),
   notes: draft.notes,
 });

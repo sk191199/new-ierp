@@ -1,5 +1,4 @@
 import AddIcon from "@mui/icons-material/Add";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -47,7 +46,7 @@ import {
 } from "@/pages/CRM/Leads/leadFieldOrder";
 import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
-import { readSectionsByScreen, readSettingsCatalog, saveSectionsByScreen, saveSettingsCatalog, type SettingsCatalog } from "./settingsCatalog";
+import { readSectionsByScreen, readSettingsCatalog, saveSectionsByScreen, saveSettingsCatalog, settingsScreenKey, type SettingsCatalog } from "./settingsCatalog";
 
 const settingsSections = [
   { label: "General Workspace", icon: TuneOutlinedIcon },
@@ -61,8 +60,6 @@ const settingsSections = [
   { label: "User Access Control", icon: PersonOutlineOutlinedIcon },
   { label: "System Scheduling", icon: CalendarMonthOutlinedIcon },
 ];
-
-const fallbackScreens = ["Overview", "Configuration"];
 
 interface ArchitectField {
   label: string;
@@ -143,7 +140,15 @@ const applySavedOrder = (sections: ArchitectSection[]): ArchitectSection[] => {
       ...field,
       visible: visibility[field.id] ?? field.visible,
     }));
-    const order = section.title === "Primary Information" ? savedOrder.primary : section.title === "Follow-ups" ? savedOrder.followUps : [];
+    const order = section.title === "Primary Information"
+      ? savedOrder.primary
+      : section.title === "Classification"
+        ? savedOrder.classification
+        : section.title === "Additional Information"
+          ? savedOrder.additionalInformation
+          : section.title === "Follow-ups"
+            ? savedOrder.followUps
+            : [];
     if (!order.length) {
       return { ...section, fields: sectionFields };
     }
@@ -175,22 +180,37 @@ const applySavedOrder = (sections: ArchitectSection[]): ArchitectSection[] => {
   return [...mappedSections, ...customSections];
 };
 
-const dummyFields: ArchitectSection[] = [
-  {
-    title: "Configuration Fields",
-    description: "This screen is reserved for a future configuration catalog.",
-    fields: [{ label: "Description", id: "description", type: "Text / Char", required: false, visible: true }],
-  },
-];
+const buildFieldsForScreen = (
+  module: string,
+  screen: string,
+  sectionsByScreen: Record<string, string[]>,
+  customFields: LeadCustomField[],
+): ArchitectSection[] => {
+  if (module === "CRM & Customer Engagement" && screen === "Lead Management") {
+    return applySavedOrder(initialFields);
+  }
+
+  const storedSections = sectionsByScreen[settingsScreenKey(module, screen)] ?? sectionsByScreen[screen] ?? [];
+  const screenFields = customFields.filter((field) => field.module === module && field.screen === screen);
+  const visibility = readLeadFieldVisibility();
+  const sectionNames = Array.from(new Set([...storedSections, ...screenFields.map((field) => field.section)]));
+
+  return sectionNames.map((title) => ({
+    title,
+    description: "Configured screen fields.",
+    fields: screenFields.filter((field) => field.section === title).map((field) => ({ ...field, visible: visibility[field.id] ?? true })),
+  }));
+};
 
 export const SystemSettingsPage = () => {
   const [activeSection, setActiveSection] = useState("Screen Architect");
   const [activeModule, setActiveModule] = useState("CRM & Customer Engagement");
   const [activeScreen, setActiveScreen] = useState("Lead Management");
   const [catalog, setCatalog] = useState<SettingsCatalog>(() => readSettingsCatalog());
-  const [fields, setFields] = useState(() => applySavedOrder(initialFields));
+  const [fields, setFields] = useState(() => buildFieldsForScreen(activeModule, activeScreen, readSectionsByScreen(), readLeadCustomFields()));
   const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
   const [customFieldDialogOpen, setCustomFieldDialogOpen] = useState(false);
+  const [customFieldError, setCustomFieldError] = useState("");
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [screenDialogOpen, setScreenDialogOpen] = useState(false);
   const [moduleName, setModuleName] = useState("");
@@ -211,8 +231,15 @@ export const SystemSettingsPage = () => {
   };
 
   const selectModule = (module: string) => {
+    const screens = screensByModule[module] ?? [];
     setActiveModule(module);
-    setActiveScreen((screensByModule[module] ?? fallbackScreens)[0]);
+    setActiveScreen(screens[0] ?? "");
+    setFields(buildFieldsForScreen(module, screens[0] ?? "", sectionsByScreen, customFields));
+  };
+
+  const selectScreen = (screen: string) => {
+    setActiveScreen(screen);
+    setFields(buildFieldsForScreen(activeModule, screen, sectionsByScreen, customFields));
   };
 
   const addModule = () => {
@@ -233,6 +260,7 @@ export const SystemSettingsPage = () => {
     setCatalog(next);
     saveSettingsCatalog(next);
     setActiveScreen(name);
+    setFields(buildFieldsForScreen(activeModule, name, sectionsByScreen, customFields));
     setScreenName("");
     setScreenDialogOpen(false);
     dispatch(toastShown({ message: "Screen added successfully.", severity: "success" }));
@@ -268,65 +296,106 @@ export const SystemSettingsPage = () => {
   };
 
   const commitOrder = () => {
-    if (activeModule !== "CRM & Customer Engagement" || activeScreen !== "Lead Management") {
-      return;
+    if (activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management") {
+      saveLeadFieldOrder({
+        primary: fields.find((section) => section.title === "Primary Information")?.fields.map((field) => field.id) ?? [],
+        classification: fields.find((section) => section.title === "Classification")?.fields.map((field) => field.id) ?? [],
+        additionalInformation: fields.find((section) => section.title === "Additional Information")?.fields.map((field) => field.id) ?? [],
+        followUps: fields.find((section) => section.title === "Follow-ups")?.fields.map((field) => field.id) ?? [],
+      });
+      saveLeadFieldVisibility({ ...readLeadFieldVisibility(), ...Object.fromEntries(fields.flatMap((section) => section.fields.map((field) => [field.id, field.visible]))) });
+    } else {
+      const activeFieldIds = new Set(fields.flatMap((section) => section.fields.map((field) => field.id)));
+      const orderedActiveFields = fields.flatMap((section) => section.fields.map((field) => field.id));
+      const activeCustomFields = customFields.filter((field) => activeFieldIds.has(field.id));
+      let activeIndex = 0;
+      const nextCustomFields = customFields.map((field) => {
+        if (!activeFieldIds.has(field.id)) {
+          return field;
+        }
+        const nextId = orderedActiveFields[activeIndex++];
+        return activeCustomFields.find((customField) => customField.id === nextId) ?? field;
+      });
+      saveLeadFieldVisibility({ ...readLeadFieldVisibility(), ...Object.fromEntries(fields.flatMap((section) => section.fields.map((field) => [field.id, field.visible]))) });
+      saveLeadCustomFields(nextCustomFields);
     }
-    saveLeadFieldOrder({
-      primary: fields.find((section) => section.title === "Primary Information")?.fields.map((field) => field.id) ?? [],
-      followUps: fields.find((section) => section.title === "Follow-ups")?.fields.map((field) => field.id) ?? [],
-    });
-    saveLeadFieldVisibility(Object.fromEntries(fields.flatMap((section) => section.fields.map((field) => [field.id, field.visible]))));
-    saveLeadCustomFields(customFields);
-    dispatch(toastShown({ message: "Lead Management architecture updated successfully.", severity: "success" }));
+    if (activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management") {
+      saveLeadCustomFields(customFields);
+    }
+    dispatch(toastShown({ message: activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management" ? "Lead Management architecture updated successfully." : "Architecture updated successfully.", severity: "success" }));
   };
 
-  const revertOrder = () => setFields(applySavedOrder(initialFields));
+  const revertOrder = () => setFields(buildFieldsForScreen(activeModule, activeScreen, readSectionsByScreen(), readLeadCustomFields()));
 
   const addCustomField = () => {
+    const availableScreens = screensByModule[customFieldDraft.module] ?? [];
+    if (!modules.includes(customFieldDraft.module) || !availableScreens.length) {
+      setCustomFieldError("No screens are configured for this module. Please add a screen before creating a custom field.");
+      dispatch(toastShown({ message: "No screens are configured for this module. Please add a screen before creating a custom field.", severity: "error" }));
+      return;
+    }
+
+    if (!customFieldDraft.screen.trim() || !availableScreens.includes(customFieldDraft.screen)) {
+      setCustomFieldError("Please select a screen before creating a custom field.");
+      dispatch(toastShown({ message: "Please select a screen before creating a custom field.", severity: "error" }));
+      return;
+    }
+
     const label = customFieldDraft.label.trim();
     if (!label) {
       return;
     }
     const section = customFieldDraft.section === "__new__" ? newSectionName.trim() : customFieldDraft.section;
     if (!section) return;
-    const nextSections = { ...sectionsByScreen, [customFieldDraft.screen]: [...(sectionsByScreen[customFieldDraft.screen] ?? []), ...(sectionsByScreen[customFieldDraft.screen]?.includes(section) ? [] : [section])] };
+    const sectionKey = settingsScreenKey(customFieldDraft.module, customFieldDraft.screen);
+    const existingSections = sectionsByScreen[sectionKey] ?? sectionsByScreen[customFieldDraft.screen] ?? [];
+    const nextSections = { ...sectionsByScreen, [sectionKey]: [...existingSections, ...(existingSections.includes(section) ? [] : [section])] };
     setSectionsByScreen(nextSections);
     saveSectionsByScreen(nextSections);
     const field = { ...customFieldDraft, section, id: `custom_${Date.now()}`, label };
     const nextCustomFields = [...customFields, field];
     setCustomFields(nextCustomFields);
     saveLeadCustomFields(nextCustomFields);
-    if (field.screen === "Lead Management") {
-      setFields((current) => {
-        const exists = current.some((section) => section.title === field.section);
-        return exists
-          ? current.map((section) => section.title === field.section ? { ...section, fields: [...section.fields, { ...field, visible: true }] } : section)
-          : [...current, { title: field.section, description: "Custom Lead Management fields.", fields: [{ ...field, visible: true }] }];
-      });
+    if (field.module === activeModule && field.screen === activeScreen) {
+      setFields(buildFieldsForScreen(activeModule, activeScreen, nextSections, nextCustomFields));
     }
     setCustomFieldDraft({ label: "", type: "Text / Char", required: false, module: "CRM & Customer Engagement", screen: "Lead Management", section: "Additional Information" });
     setNewSectionName("");
+    setCustomFieldError("");
     setCustomFieldDialogOpen(false);
     dispatch(toastShown({ message: "Custom field added successfully.", severity: "success" }));
   };
 
   return (
-    <Stack gap={{ xs: 2, md: 2.5 }}>
+    <Stack gap={{ xs: 2, md: 2.75 }} sx={{ minWidth: 0 }}>
       <PageHeader
         eyebrow="Terminal Configuration"
         title="System Settings"
-        description="Configure global parameters, security protocols, and agentic autonomy."
+        description="Configure your ERP environment, screen architecture, workflows, security, and intelligent behaviour."
       />
 
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "280px minmax(0, 1fr)" },
-          gap: { xs: 2, lg: 3.5 },
+          gridTemplateColumns: { xs: "1fr", lg: "232px minmax(0, 1fr)" },
+          gap: { xs: 2, md: 2.5, lg: 3 },
           alignItems: "start",
         }}
       >
-        <Stack component="nav" aria-label="Settings sections" gap={0.4} sx={{ pt: { lg: 0.75 } }}>
+        <Stack
+          component="nav"
+          aria-label="Settings sections"
+          gap={0.5}
+          sx={{
+            pt: { lg: 0.75 },
+            position: { lg: "sticky" },
+            top: { lg: 24 },
+            overflowX: { xs: "auto", lg: "visible" },
+            flexDirection: { xs: "row", lg: "column" },
+            pb: { xs: 0.5, lg: 0 },
+            scrollbarWidth: "thin",
+          }}
+        >
           {settingsSections.map(({ label, icon: Icon }) => {
             const active = activeSection === label;
             return (
@@ -336,17 +405,28 @@ export const SystemSettingsPage = () => {
                 startIcon={<Icon sx={{ fontSize: 17 }} />}
                 onClick={() => setActiveSection(label)}
                 sx={{
-                  minHeight: 40,
+                  minHeight: 42,
+                  flex: { xs: "0 0 auto", lg: "initial" },
                   justifyContent: "flex-start",
-                  px: 1.75,
+                  px: 1.5,
+                  border: 1,
+                  borderColor: "transparent",
                   color: active ? "primary.contrastText" : "text.secondary",
-                  bgcolor: active ? "chrome.sidebar" : "transparent",
+                  bgcolor: active ? "primary.main" : "transparent",
                   borderRadius: 1.5,
                   fontSize: "0.72rem",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  "& .MuiButton-startIcon": { color: active ? "primary.light" : "text.secondary" },
-                  "&:hover": { bgcolor: active ? "chrome.sidebar" : "action.hover" },
+                  fontWeight: active ? 800 : 650,
+                  letterSpacing: "0.04em",
+                  textTransform: "none",
+                  whiteSpace: "nowrap",
+                  "& .MuiButton-startIcon": {
+                    color: active ? "primary.contrastText" : "text.secondary",
+                    mr: 1,
+                  },
+                  "&:hover": {
+                    bgcolor: active ? "primary.main" : "action.hover",
+                    borderColor: active ? "transparent" : "divider",
+                  },
                 }}
               >
                 {label}
@@ -355,15 +435,15 @@ export const SystemSettingsPage = () => {
           })}
         </Stack>
 
-        <Card sx={{ overflow: "hidden" }}>
-          <CardContent sx={{ p: { xs: 2, md: 3 }, "&:last-child": { pb: { xs: 2, md: 3 } } }}>
+        <Card sx={{ overflow: "hidden", minWidth: 0 }}>
+          <CardContent sx={{ p: { xs: 1.5, sm: 2.25, md: 3 }, "&:last-child": { pb: { xs: 1.5, sm: 2.25, md: 3 } } }}>
             {activeSection === "Screen Architect" ? (
               <ScreenArchitect
                 activeModule={activeModule}
                 activeScreen={activeScreen}
                 fields={fields}
                 onModuleChange={selectModule}
-                onScreenChange={setActiveScreen}
+                onScreenChange={selectScreen}
                 onFieldToggle={toggleField}
                 onReorder={reorderFields}
                 onSave={commitOrder}
@@ -371,18 +451,20 @@ export const SystemSettingsPage = () => {
                 onAddCustomField={() => {
                   const availableScreens = screensByModule[activeModule] ?? [];
                   if (!availableScreens.length) {
-                    dispatch(toastShown({ message: "No screens are available for this module.", severity: "info" }));
+                    dispatch(toastShown({ message: "No screens are configured for this module. Please add a screen before creating a custom field.", severity: "error" }));
                     return;
                   }
                   setCustomFieldModule(activeModule);
-                  setCustomFieldDraft((current) => ({ ...current, module: activeModule, screen: activeScreen, section: (sectionsByScreen[activeScreen] ?? ["Additional Information"])[0] }));
+                  const screen = availableScreens.includes(activeScreen) ? activeScreen : availableScreens[0];
+                  setCustomFieldError("");
+                  const availableSections = sectionsByScreen[settingsScreenKey(activeModule, screen)] ?? sectionsByScreen[screen] ?? [];
+                  setCustomFieldDraft((current) => ({ ...current, module: activeModule, screen, section: availableSections[0] ?? "__new__" }));
                   setCustomFieldDialogOpen(true);
                 }}
                 onAddModule={() => setModuleDialogOpen(true)}
                 onAddScreen={() => setScreenDialogOpen(true)}
                 modules={modules}
                 screensByModule={screensByModule}
-                customFields={customFields}
               />
             ) : (
               <Stack alignItems="flex-start" gap={1} sx={{ py: 4 }}>
@@ -400,9 +482,15 @@ export const SystemSettingsPage = () => {
           </CardContent>
         </Card>
       </Box>
-      <Dialog open={customFieldDialogOpen} onClose={() => setCustomFieldDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Add custom field</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={customFieldDialogOpen}
+        onClose={() => setCustomFieldDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}
+      >
+        <DialogTitle sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 1 }}>Add custom field</DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 }, maxHeight: { xs: "70vh", sm: "none" } }}>
           <Stack gap={2} sx={{ pt: 1 }}>
             <TextField
               select
@@ -412,9 +500,20 @@ export const SystemSettingsPage = () => {
                 const module = event.target.value;
                 const nextScreens = screensByModule[module] ?? [];
                 setCustomFieldModule(module);
-                setCustomFieldDraft((current) => ({ ...current, module, screen: nextScreens[0] ?? "", section: "" }));
+                if (!nextScreens.length) {
+                  setCustomFieldError("No screens are configured for this module. Please add a screen before creating a custom field.");
+                  setCustomFieldDraft((current) => ({ ...current, module, screen: "", section: "" }));
+                  return;
+                }
+
+                const screen = nextScreens[0];
+                setCustomFieldError("");
+                const availableSections = sectionsByScreen[settingsScreenKey(module, screen)] ?? sectionsByScreen[screen] ?? [];
+                setCustomFieldDraft((current) => ({ ...current, module, screen, section: availableSections[0] ?? "__new__" }));
               }}
               fullWidth
+              error={Boolean(customFieldError)}
+              helperText={customFieldError || undefined}
             >
               {modules.map((module) => <MenuItem key={module} value={module}>{module}</MenuItem>)}
             </TextField>
@@ -422,8 +521,14 @@ export const SystemSettingsPage = () => {
               select
               label="Screen / Form"
               value={customFieldDraft.screen}
-              onChange={(event) => setCustomFieldDraft((current) => ({ ...current, screen: event.target.value, section: (sectionsByScreen[event.target.value] ?? ["Additional Information"])[0] }))}
+              onChange={(event) => {
+                const screen = event.target.value;
+                setCustomFieldError("");
+                const availableSections = sectionsByScreen[settingsScreenKey(customFieldDraft.module, screen)] ?? sectionsByScreen[screen] ?? [];
+                setCustomFieldDraft((current) => ({ ...current, screen, section: availableSections[0] ?? "__new__" }));
+              }}
               fullWidth
+              error={Boolean(customFieldError)}
             >
               {(screensByModule[customFieldModule] ?? []).map((screen) => <MenuItem key={screen} value={screen}>{screen}</MenuItem>)}
             </TextField>
@@ -434,7 +539,7 @@ export const SystemSettingsPage = () => {
               onChange={(event) => setCustomFieldDraft((current) => ({ ...current, section: event.target.value }))}
               fullWidth
             >
-              {(sectionsByScreen[customFieldDraft.screen] ?? []).map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
+              {(sectionsByScreen[settingsScreenKey(customFieldDraft.module, customFieldDraft.screen)] ?? sectionsByScreen[customFieldDraft.screen] ?? []).map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
               <MenuItem value="__new__">Add new section</MenuItem>
             </TextField>
             {customFieldDraft.section === "__new__" ? (
@@ -462,27 +567,53 @@ export const SystemSettingsPage = () => {
             </Stack>
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, gap: 1, "& .MuiButton-root": { minHeight: 40 } }}>
           <Button onClick={() => setCustomFieldDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={addCustomField} disabled={!customFieldDraft.label.trim()}>Add field</Button>
+          <Button
+            variant="contained"
+            onClick={addCustomField}
+            disabled={
+              !modules.includes(customFieldDraft.module) ||
+              !(screensByModule[customFieldDraft.module] ?? []).length ||
+              !customFieldDraft.screen.trim() ||
+              !customFieldDraft.label.trim() ||
+              (!customFieldDraft.section.trim() || (customFieldDraft.section === "__new__" && !newSectionName.trim()))
+            }
+          >
+            Add field
+          </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={moduleDialogOpen} onClose={() => setModuleDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Add module</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={moduleDialogOpen}
+        onClose={() => setModuleDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        slotProps={{
+          backdrop: {
+            sx: {
+              backdropFilter: "blur(6px)",
+              backgroundColor: "rgba(15, 23, 42, 0.45)",
+            },
+          },
+        }}
+        PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}
+      >
+        <DialogTitle sx={{ px: { xs: 2, sm: 3 } }}>Add module</DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
           <TextField autoFocus fullWidth label="Module name" value={moduleName} onChange={(event) => setModuleName(event.target.value)} sx={{ mt: 1 }} />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
           <Button onClick={() => setModuleDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={addModule} disabled={!moduleName.trim()}>Add module</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={screenDialogOpen} onClose={() => setScreenDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Add screen to {activeModule}</DialogTitle>
-        <DialogContent>
+      <Dialog open={screenDialogOpen} onClose={() => setScreenDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}>
+        <DialogTitle sx={{ px: { xs: 2, sm: 3 }, overflowWrap: "anywhere" }}>Add screen to {activeModule}</DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
           <TextField autoFocus fullWidth label="Screen name" value={screenName} onChange={(event) => setScreenName(event.target.value)} sx={{ mt: 1 }} />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
           <Button onClick={() => setScreenDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={addScreen} disabled={!screenName.trim()}>Add screen</Button>
         </DialogActions>
@@ -506,7 +637,6 @@ const ScreenArchitect = ({
   onAddScreen,
   modules,
   screensByModule,
-  customFields,
 }: {
   activeModule: string;
   activeScreen: string;
@@ -522,72 +652,115 @@ const ScreenArchitect = ({
   onAddScreen: () => void;
   modules: string[];
   screensByModule: Record<string, string[]>;
-  customFields: LeadCustomField[];
 }) => {
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
   return (
-  <Stack gap={2.5}>
-    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={2}>
-      <Box>
-        <Typography variant="h4" sx={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>
+  <Stack gap={{ xs: 2, md: 2.75 }} sx={{ minWidth: 0 }}>
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      justifyContent="space-between"
+      alignItems={{ xs: "stretch", sm: "flex-start" }}
+      gap={2}
+      sx={{ pb: { xs: 0.5, md: 1 } }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="h4" sx={{ fontSize: { xs: "1.25rem", md: "1.5rem" }, fontWeight: 800 }}>
           Screen Architect
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-          Select module
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 560 }}>
+          Design and control the structure of your ERP screens.
         </Typography>
       </Box>
-      <Button variant="contained" startIcon={<AddIcon />} onClick={onAddCustomField} sx={{ alignSelf: { sm: "flex-start" } }}>
+      <Button
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={onAddCustomField}
+        sx={{ alignSelf: { sm: "flex-start" }, minHeight: 42, whiteSpace: "nowrap", boxShadow: "none" }}
+      >
         Add custom field
       </Button>
     </Stack>
 
-    <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-      <ChipGroup items={modules} active={activeModule} onChange={onModuleChange} />
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<AddCircleOutlineIcon />}
-        onClick={onAddModule}
-        sx={{ color: "success.main", borderColor: "success.main", "&:hover": { color: "success.dark", borderColor: "success.main", bgcolor: "action.hover" } }}
-      >
-        Add module
-      </Button>
-    </Stack>
+    <Box sx={{ p: { xs: 1.25, md: 1.5 }, border: 1, borderColor: "divider", borderRadius: 2, bgcolor: "action.hover", minWidth: 0 }}>
+      <Typography variant="overline" color="text.secondary" sx={{ display: "block", fontWeight: 800, lineHeight: 1.5 }}>
+        Module
+      </Typography>
+      <Stack direction={{ xs: "column", md: "row" }} alignItems={{ xs: "stretch", md: "center" }} gap={1.25} sx={{ mt: 0.75 }}>
+        <ChipGroup items={modules} active={activeModule} onChange={onModuleChange} />
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={onAddModule}
+          sx={{
+            alignSelf: { xs: "flex-start", md: "center" },
+            ml: { md: "auto" },
+            flexShrink: 0,
+            color: "success.main",
+            borderColor: "success.main",
+            whiteSpace: "nowrap",
+            "&:hover": { color: "success.dark", borderColor: "success.main", bgcolor: "background.paper" },
+          }}
+        >
+          Add module
+        </Button>
+      </Stack>
+    </Box>
+
+    <Box sx={{ p: { xs: 1.25, md: 1.5 }, border: 1, borderColor: "divider", borderRadius: 2, bgcolor: "action.hover", minWidth: 0 }}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", md: "flex-start" }} gap={1.25}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ display: "block", fontWeight: 800, lineHeight: 1.5 }}>
+            Screens
+          </Typography>
+          <Typography variant="caption" color="text.secondary">Choose a screen to configure its sections and fields.</Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={onAddScreen}
+          sx={{ alignSelf: { xs: "flex-start", md: "center" }, color: "success.main", borderColor: "success.main", whiteSpace: "nowrap", "&:hover": { color: "success.dark", borderColor: "success.main", bgcolor: "background.paper" } }}
+        >
+          Add screen
+        </Button>
+      </Stack>
+      <Box sx={{ mt: 1 }}>
+        <ChipGroup
+          items={screensByModule[activeModule] ?? []}
+          active={activeScreen}
+          onChange={onScreenChange}
+        />
+      </Box>
+    </Box>
 
     <Divider />
 
-    <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-        Select screen
+    <Stack direction="row" alignItems="center" gap={1}>
+      <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "success.main", flexShrink: 0 }} />
+      <Typography variant="caption" color="text.secondary">
+        {activeModule} <Box component="span" sx={{ color: "text.disabled", px: 0.5 }}>›</Box> {activeScreen}
       </Typography>
-      <ChipGroup
-        items={screensByModule[activeModule] ?? fallbackScreens}
-        active={activeScreen}
-        onChange={onScreenChange}
-      />
-      <Button
-        variant="outlined"
-        size="small"
-        startIcon={<AddIcon />}
-        onClick={onAddScreen}
-        sx={{ mt: 1.5, color: "success.main", borderColor: "success.main" }}
-      >
-        Add screen to {activeModule}
-      </Button>
-    </Box>
+    </Stack>
 
     {activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management" ? (
       <Stack gap={2}>
-        {fields.map((section) => (
-          <Accordion key={section.title} defaultExpanded={false} disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2, minHeight: 62 }}>
+        {fields.map((section, index) => (
+          <Accordion key={section.title} defaultExpanded={false} disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "12px !important", boxShadow: "none", overflow: "hidden", transition: "background-color 160ms ease", "&:before": { display: "none" }, "&:hover": { borderColor: "divider" }, "&.Mui-expanded": { borderColor: "divider", bgcolor: "action.hover" }, "&:focus-visible": { outline: "none", borderColor: "divider" }, "& .MuiAccordionSummary-root:focus-visible": { outline: "none", borderColor: "divider" } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: { xs: 1.5, md: 2 }, py: 0.5, minHeight: 72, "& .MuiAccordionSummary-content": { my: 1.25 } }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ textTransform: "uppercase" }}>{section.title}</Typography>
+                <Stack direction="row" alignItems="baseline" gap={1} flexWrap="wrap">
+                  <Typography variant="caption" color="primary.main" sx={{ fontWeight: 800 }}>0{index + 1}</Typography>
+                  <Typography variant="h6" sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, fontWeight: 800 }}>{section.title}</Typography>
+                </Stack>
                 <Typography variant="caption" color="text.secondary">{section.description}</Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.5 }}>
+                  {section.fields.length} fields <Box component="span" sx={{ px: 0.5 }}>·</Box> {section.fields.filter((field) => field.required).length} required <Box component="span" sx={{ px: 0.5 }}>·</Box> {section.fields.filter((field) => !field.required).length} optional
+                </Typography>
               </Box>
             </AccordionSummary>
-            <AccordionDetails sx={{ px: { xs: 1, md: 2 }, pb: 2 }}>
+            <AccordionDetails sx={{ px: { xs: 1, md: 2 }, pb: { xs: 1.25, md: 2 }, pt: { xs: 0.5, md: 0.75 }, borderTop: 1, borderColor: "divider" }}>
               <Stack gap={1.25}>
                 {section.fields.map((field) => (
                   <FieldRow
@@ -620,21 +793,18 @@ const ScreenArchitect = ({
         <Typography variant="body2" color="text.secondary">
           This screen is linked to the selected module and is reserved for configuration.
         </Typography>
-        {Array.from(new Set(customFields.filter((field) => field.module === activeModule && field.screen === activeScreen).map((field) => field.section))).map((section) => (
-          <Accordion key={section} defaultExpanded={false} disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}><Typography variant="h6">{section}</Typography></AccordionSummary>
+        {fields.map((section) => (
+          <Accordion key={section.title} defaultExpanded={false} disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}><Typography variant="h6">{section.title}</Typography></AccordionSummary>
             <AccordionDetails sx={{ px: 1 }}>
               <Stack gap={1.25}>
-                {customFields.filter((field) => field.module === activeModule && field.screen === activeScreen && field.section === section).map((field) => (
-                  <FieldRow key={field.id} field={{ ...field, visible: true }} onToggle={() => {}} />
+                {section.fields.map((field) => (
+                  <FieldRow key={field.id} field={field} onToggle={() => onFieldToggle(field.id)} />
                 ))}
               </Stack>
             </AccordionDetails>
           </Accordion>
         ))}
-        {customFields.every((field) => field.module !== activeModule || field.screen !== activeScreen) ? dummyFields.map((section) => section.fields.map((field) => (
-          <FieldRow key={field.id} field={field} onToggle={() => onFieldToggle(field.id)} />
-        ))) : null}
       </Stack>
     )}
 
@@ -643,17 +813,15 @@ const ScreenArchitect = ({
       alignItems={{ xs: "flex-start", sm: "center" }}
       justifyContent="space-between"
       gap={2}
-      sx={{ pt: 1.5 }}
+      sx={{ mt: 0.5, pt: 2, borderTop: 1, borderColor: "divider" }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 410 }}>
-        <Box component="span" sx={{ color: "primary.main", fontWeight: 800 }}>
-          Intelligent persistence:
-        </Box>{" "}
-        Changes are staged in the neural cache. Update to propagate to all cloud instances.
+      <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 460, lineHeight: 1.5 }}>
+        <Box component="span" sx={{ color: "primary.main", fontWeight: 800 }}>Intelligent persistence</Box>{" "}
+        Changes are staged until architecture is updated.
       </Typography>
-      <Stack direction="row" gap={1}>
-        <Button variant="outlined" onClick={onRevert}>Revert</Button>
-        <Button variant="contained" onClick={onSave}>Update architecture</Button>
+      <Stack direction={{ xs: "column", sm: "row" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
+        <Button variant="outlined" onClick={onRevert} sx={{ minWidth: { sm: 92 } }}>Revert</Button>
+        <Button variant="contained" onClick={onSave} sx={{ minWidth: { sm: 178 } }}>Update architecture</Button>
       </Stack>
     </Stack>
   </Stack>
@@ -661,7 +829,7 @@ const ScreenArchitect = ({
 };
 
 const ChipGroup = ({ items, active, onChange }: { items: string[]; active: string; onChange: (value: string) => void }) => (
-  <Stack direction="row" flexWrap="wrap" gap={0.75}>
+  <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
     {items.map((item) => (
       <Chip
         key={item}
@@ -670,7 +838,7 @@ const ChipGroup = ({ items, active, onChange }: { items: string[]; active: strin
         onClick={() => onChange(item)}
         color={item === active ? "primary" : "default"}
         variant={item === active ? "filled" : "outlined"}
-        sx={{ fontSize: "0.62rem", maxWidth: "100%" }}
+        sx={{ fontSize: "0.68rem", maxWidth: { xs: 260, md: "100%" }, flexShrink: 0, height: 30, borderRadius: 1.25, fontWeight: item === active ? 800 : 650, transition: "background-color 160ms ease, border-color 160ms ease" }}
       />
     ))}
   </Stack>
@@ -700,38 +868,59 @@ const FieldRow = ({
     sx={{
       display: "grid",
       gridTemplateColumns: {
-        xs: "1fr auto",
+        xs: "40px minmax(0, 1fr)",
+        sm: "42px minmax(180px, 1.3fr) minmax(130px, 0.85fr) minmax(130px, 0.85fr) minmax(150px, 0.8fr)",
         md: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
       },
-      gap: { xs: 1, md: 2 },
+      gap: { xs: 1.25, md: 2 },
       alignItems: "center",
-      p: { xs: 1.25, md: 1.5 },
-      bgcolor: "action.hover",
+      p: { xs: 1.5, sm: 1.5 },
+      bgcolor: "background.paper",
+      border: 1,
+      borderColor: "divider",
       borderRadius: 1.5,
+      transition: "border-color 160ms ease, background-color 160ms ease, transform 160ms ease",
+      "&:hover": { borderColor: draggable ? "primary.main" : "divider", bgcolor: "action.hover" },
       "& > *": { minWidth: 0 },
+      "& > :nth-of-type(3)": { display: { xs: "block", sm: "flex" }, gridColumn: { xs: "1 / -1", sm: "auto" }, mt: { xs: 0.5, sm: 0 } },
+      "& > :nth-of-type(4)": { gridColumn: { xs: "1 / -1", sm: "auto" } },
+      "& > :nth-of-type(5)": { gridColumn: { xs: "1 / -1", sm: "auto" }, justifyContent: { xs: "space-between", sm: "flex-end" }, borderTop: { xs: 1, sm: 0 }, borderColor: "divider", pt: { xs: 1, sm: 0 }, mt: { xs: 0.25, sm: 0 } },
       cursor: draggable ? "grab" : "default",
       "&:active": { cursor: draggable ? "grabbing" : "default" },
     }}
   >
-    <Box sx={{ display: { xs: "none", md: "grid" }, placeItems: "center", width: 34, height: 34, borderRadius: 1.25, bgcolor: "primary.light", color: "primary.contrastText" }}>
+    <Box sx={{ display: "grid", placeItems: "center", width: 34, height: 34, borderRadius: 1.25, bgcolor: draggable ? "action.selected" : "action.hover", color: draggable ? "primary.main" : "text.disabled" }}>
       {draggable ? <DragIndicatorIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
     </Box>
     <Box sx={{ minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary">Label</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 800, textTransform: "uppercase" }}>{field.label}</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.08em" }}>
+        Field
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>{field.label}</Typography>
+      <Typography variant="caption" color="text.disabled" sx={{ display: { xs: "block", sm: "none" }, mt: 0.25, overflowWrap: "anywhere" }}>{field.id}</Typography>
     </Box>
-    <Stack direction="row" alignItems="center" gap={1} sx={{ display: { xs: "none", md: "flex" }, minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary">Data type</Typography>
-      <Chip label={field.type} size="small" variant="outlined" />
+    <Stack direction="row" alignItems="center" gap={1} sx={{ display: { xs: "none", sm: "flex" }, minWidth: 0 }}>
+      <Stack gap={0.35} minWidth={0}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.08em" }}>
+          Data type
+        </Typography>
+        <Chip label={field.type} size="small" variant="outlined" />
+      </Stack>
     </Stack>
-    <Box sx={{ display: { xs: "none", md: "block" }, minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary">Rules architect</Typography>
-      <Typography variant="caption" sx={{ display: "block", color: field.required ? "primary.main" : "text.secondary", fontWeight: 800, textTransform: "uppercase" }}>
+    <Box sx={{ display: "block", minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.08em" }}>
+        Rule
+      </Typography>
+      <Typography variant="body2" sx={{ color: field.required ? "primary.main" : "text.secondary", fontWeight: 800 }}>
         {field.required ? "Required" : "Optional"}
       </Typography>
     </Box>
     <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={1} sx={{ minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }}>{field.id}</Typography>
+      <Box>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.08em" }}>
+          Action
+        </Typography>
+      </Box>
       <Tooltip title={field.visible ? "Hide field" : "Show field"}>
         <IconButton size="small" aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`} onClick={onToggle} color={field.visible ? "primary" : "default"}>
           {field.visible ? <VisibilityOutlinedIcon fontSize="small" /> : <VisibilityOffOutlinedIcon fontSize="small" />}

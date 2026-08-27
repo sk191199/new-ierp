@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import { FormSection } from "@/components/forms/FormSection";
 import { readLeadCustomFields, type LeadCustomField } from "@/pages/CRM/Leads/leadFieldOrder";
-import { readSectionsByScreen, settingsSlug } from "./settingsCatalog";
+import { readSectionsByScreen, settingsScreenKey, settingsSlug } from "./settingsCatalog";
 import { readSettingsCatalog } from "./settingsCatalog";
 
 export const ConfiguredScreenPage = () => {
@@ -13,7 +13,11 @@ export const ConfiguredScreenPage = () => {
   const moduleName = catalog.modules.find((value) => settingsSlug(value) === moduleSlug) ?? "Configured Module";
   const screenName = (catalog.screensByModule[moduleName] ?? []).find((value) => settingsSlug(value) === screenSlug) ?? "Configured Screen";
   const customFields = readLeadCustomFields().filter((field) => field.module === moduleName && field.screen === screenName);
-  const sections = readSectionsByScreen()[screenName] ?? [];
+  const sectionsByScreen = useMemo(() => readSectionsByScreen(), []);
+  const sections = useMemo(
+    () => sectionsByScreen[settingsScreenKey(moduleName, screenName)] ?? sectionsByScreen[screenName] ?? [],
+    [moduleName, screenName, sectionsByScreen],
+  );
   const groupedFields = useMemo(() => {
     const names = sections.length ? sections : Array.from(new Set(customFields.map((field) => field.section)));
     return names.map((section) => ({

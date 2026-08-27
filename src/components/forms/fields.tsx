@@ -172,6 +172,7 @@ interface TextLikeProps extends BaseFieldProps {
   minRows?: number;
   type?: "text" | "email" | "tel" | "number" | "date" | "url";
   min?: string;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
   readOnly?: boolean;
 }
 
@@ -237,6 +238,7 @@ export const TextFieldControl = ({
   minRows,
   type = "text",
   min,
+  inputMode,
   readOnly,
 }: TextLikeProps) => (
   <TextField
@@ -259,6 +261,7 @@ export const TextFieldControl = ({
       inputLabel: type === "date" ? { shrink: true, sx: fieldLabelSx } : { sx: fieldLabelSx },
       htmlInput: {
         min,
+        inputMode,
       },
       input: {
         readOnly,

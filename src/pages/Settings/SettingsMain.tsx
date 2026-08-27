@@ -1,5 +1,3 @@
-
-
 const SettingsMain = () => {
   return (
     <div>
