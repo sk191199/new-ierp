@@ -684,7 +684,7 @@ export const FieldGrid = ({
     }}
   >
     {Children.map(children, (child) => {
-      if (!isValidElement(child)) {
+      if (!isValidElement<{ name?: string }>(child)) {
         return child;
       }
 

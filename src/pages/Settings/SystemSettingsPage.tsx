@@ -869,8 +869,8 @@ const FieldRow = ({
       display: "grid",
       gridTemplateColumns: {
         xs: "40px minmax(0, 1fr)",
-        sm: "42px minmax(180px, 1.3fr) minmax(130px, 0.85fr) minmax(130px, 0.85fr) minmax(150px, 0.8fr)",
-        md: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
+        sm: "42px minmax(140px, 1.3fr) minmax(110px, 0.85fr) minmax(105px, 0.85fr) minmax(118px, 0.8fr)",
+        xl: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
       },
       gap: { xs: 1.25, md: 2 },
       alignItems: "center",
