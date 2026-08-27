@@ -650,11 +650,28 @@ export const BooleanField = ({
 export const FieldGrid = ({
   children,
   fieldOrder,
+  hiddenFieldKeys = [],
 }: {
   children: ReactNode;
   fieldOrder?: string[];
+  hiddenFieldKeys?: string[];
 }) => {
   const orderMap = new Map((fieldOrder ?? []).map((fieldKey, index) => [fieldKey, index]));
+  const hiddenKeys = new Set(hiddenFieldKeys);
+  const getFieldKey = (child: ReactNode): string | undefined =>
+    isValidElement<{ name?: string }>(child) ? child.props.name : undefined;
+  const orderedChildren = Children.toArray(children)
+    .filter((child) => !hiddenKeys.has(getFieldKey(child) ?? ""))
+    .map((child, index) => ({ child, index }))
+    .sort((left, right) => {
+      const leftKey = getFieldKey(left.child);
+      const rightKey = getFieldKey(right.child);
+      const leftOrder = leftKey ? orderMap.get(leftKey) ?? fieldOrder?.length ?? 0 : fieldOrder?.length ?? 0;
+      const rightOrder = rightKey ? orderMap.get(rightKey) ?? fieldOrder?.length ?? 0 : fieldOrder?.length ?? 0;
+
+      return leftOrder - rightOrder || left.index - right.index;
+    })
+    .map(({ child }) => child);
 
   return (
   <Stack
@@ -675,15 +692,14 @@ export const FieldGrid = ({
       },
     }}
   >
-    {Children.map(children, (child) => {
+    {orderedChildren.map((child) => {
       if (!isValidElement(child)) {
         return child;
       }
 
-      const fieldKey = child.props.name as string | undefined;
-      const order = fieldKey ? orderMap.get(fieldKey) ?? fieldOrder?.length ?? 0 : fieldOrder?.length ?? 0;
+      const fieldKey = getFieldKey(child);
       return (
-        <Box key={fieldKey ?? String(child.key)} data-field-key={fieldKey} sx={{ order, minWidth: 0 }}>
+        <Box key={fieldKey ?? String(child.key)} data-field-key={fieldKey} sx={{ minWidth: 0 }}>
           {child}
         </Box>
       );

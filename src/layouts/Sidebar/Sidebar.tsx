@@ -87,7 +87,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
       </List>
 
       <Stack
-        gap={1.25}
+        gap={collapsed ? 1.25 : 1}
         sx={{
           p: collapsed ? 1.25 : 1.75,
           borderTop: 1,
@@ -97,12 +97,12 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
         <Stack direction="row" alignItems="center" gap={1.25}>
           <Avatar
             sx={{
-              width: 36,
-              height: 36,
+              width: collapsed ? 36 : 34,
+              height: collapsed ? 36 : 34,
               bgcolor: "primary.dark",
-              fontSize: 14,
+              fontSize: collapsed ? 14 : 13,
               fontWeight: 700,
-              borderRadius: 1.5,
+              borderRadius: collapsed ? 1.5 : 1.25,
             }}
           >
             {user?.initials ?? "AM"}
@@ -122,7 +122,16 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
                 }),
             }}
           >
-              <Typography variant="subtitle2" noWrap sx={{ color: "chrome.sidebarText", fontWeight: 800 }}>
+              <Typography
+                variant="subtitle2"
+                noWrap
+                sx={{
+                  color: "chrome.sidebarText",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                }}
+              >
                 {user?.displayName ?? "Aarav Mehta"}
               </Typography>
               <Stack direction="row" alignItems="center" gap={0.75}>
@@ -130,7 +139,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
                 <Typography
                   variant="caption"
                   noWrap
-                  sx={{ color: "success.main", letterSpacing: "0.1em", textTransform: "uppercase" }}
+                  sx={{ color: "success.main", fontSize: "0.58rem", letterSpacing: "0.07em", lineHeight: 1.2 }}
                 >
                   {user?.roleName ?? "Global Admin"}
                 </Typography>
@@ -160,7 +169,10 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
             sx={{
               color: "primary.contrastText",
               borderColor: "chrome.sidebarBorder",
-              letterSpacing: "0.12em",
+              minHeight: 34,
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              letterSpacing: "0.09em",
               bgcolor: "primary.main",
               "&:hover": {
                 borderColor: "chrome.borderStrong",

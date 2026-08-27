@@ -23,7 +23,6 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  IconButton,
   MenuItem,
   Stack,
   Switch,
@@ -34,11 +33,12 @@ import { useState } from "react";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import {
   readLeadCustomFields,
+  readLeadFieldVisibility,
   readLeadFieldOrder,
+  saveLeadFieldVisibility,
   saveLeadCustomFields,
   saveLeadFieldOrder,
   type LeadCustomField,
-  type LeadFieldOrder,
 } from "@/pages/CRM/Leads/leadFieldOrder";
 import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
@@ -96,7 +96,7 @@ interface ArchitectSection {
   fields: ArchitectField[];
 }
 
-const initialFields = [
+const initialFields = ([
   {
     title: "Primary Information",
     description: "Capture the essential lead details.",
@@ -141,7 +141,11 @@ const initialFields = [
       ["Follow-up File", "followUpFile", "File", false],
     ],
   },
-].map((section) => ({
+ ] satisfies Array<{
+  title: string;
+  description: string;
+  fields: Array<[string, string, string, boolean]>;
+}>).map((section) => ({
   ...section,
   fields: section.fields.map(([label, id, type, required]) => ({ label, id, type, required, visible: true })),
 })) satisfies ArchitectSection[];
@@ -149,14 +153,24 @@ const initialFields = [
 const applySavedOrder = (sections: ArchitectSection[]): ArchitectSection[] => {
   const savedOrder = readLeadFieldOrder();
   const savedCustomFields = readLeadCustomFields();
+  const savedVisibility = readLeadFieldVisibility();
   return sections.map((section) => {
     const sectionCustomFields = savedCustomFields
       .filter((field) => field.screen === "Lead Management" && field.section === section.title)
-      .map((field) => ({ ...field, visible: true }));
+      .map((field) => ({ ...field, visible: savedVisibility[field.id] ?? true }));
     const sectionFields = [...section.fields, ...sectionCustomFields];
-    const order = section.title === "Primary Information" ? savedOrder.primary : section.title === "Follow-ups" ? savedOrder.followUps : [];
+    const order =
+      section.title === "Primary Information"
+        ? savedOrder.primary
+        : section.title === "Classification"
+          ? savedOrder.classification
+          : section.title === "Additional Information"
+            ? savedOrder.additionalInformation
+            : section.title === "Follow-ups"
+              ? savedOrder.followUps
+              : [];
     if (!order.length) {
-      return { ...section, fields: sectionFields };
+      return { ...section, fields: sectionFields.map((field) => ({ ...field, visible: savedVisibility[field.id] ?? field.visible })) };
     }
     const originalRequiredPositions = new Map(
       sectionFields.map((field, index) => (field.required ? [index, field.id] : null)).filter(Boolean) as Array<[number, string]>,
@@ -170,9 +184,10 @@ const applySavedOrder = (sections: ArchitectSection[]): ArchitectSection[] => {
       fields: sectionFields.map((field, index) => {
         const requiredId = originalRequiredPositions.get(index);
         if (requiredId) {
-          return field;
+          return { ...field, visible: savedVisibility[field.id] ?? field.visible };
         }
-        return optionalFields[optionalIndex++] ?? field;
+        const nextField = optionalFields[optionalIndex++] ?? field;
+        return { ...nextField, visible: savedVisibility[nextField.id] ?? nextField.visible };
       }),
     };
   });
@@ -243,8 +258,12 @@ export const SystemSettingsPage = () => {
     }
     saveLeadFieldOrder({
       primary: fields.find((section) => section.title === "Primary Information")?.fields.map((field) => field.id) ?? [],
+      classification: fields.find((section) => section.title === "Classification")?.fields.map((field) => field.id) ?? [],
+      additionalInformation:
+        fields.find((section) => section.title === "Additional Information")?.fields.map((field) => field.id) ?? [],
       followUps: fields.find((section) => section.title === "Follow-ups")?.fields.map((field) => field.id) ?? [],
     });
+    saveLeadFieldVisibility(Object.fromEntries(fields.flatMap((section) => section.fields.map((field) => [field.id, field.visible]))));
     saveLeadCustomFields(customFields);
     dispatch(toastShown({ message: "Lead Management architecture updated successfully.", severity: "success" }));
   };
@@ -424,17 +443,17 @@ const ScreenArchitect = ({
   const [draggedField, setDraggedField] = useState<string | null>(null);
 
   return (
-  <Stack gap={2.5}>
-    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={2}>
+  <Stack gap={{ xs: 2, md: 2.5 }}>
+    <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} gap={1.5}>
       <Box>
-        <Typography variant="h4" sx={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>
+        <Typography variant="h4" sx={{ fontSize: { xs: "1.15rem", md: "1.35rem" }, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.045em", lineHeight: 1.2 }}>
           Screen Architect
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75, fontSize: "0.66rem", letterSpacing: "0.04em" }}>
           Select module
         </Typography>
       </Box>
-      <Button variant="contained" startIcon={<AddIcon />} onClick={onAddCustomField} sx={{ alignSelf: { sm: "flex-start" } }}>
+      <Button variant="contained" startIcon={<AddIcon />} onClick={onAddCustomField} sx={{ alignSelf: { sm: "center" }, minHeight: 34, px: 1.5, fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.04em" }}>
         Add custom field
       </Button>
     </Stack>
@@ -444,7 +463,7 @@ const ScreenArchitect = ({
     <Divider />
 
     <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75, fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
         Select screen
       </Typography>
       <ChipGroup
@@ -456,24 +475,24 @@ const ScreenArchitect = ({
         variant="outlined"
         size="small"
         startIcon={<AddIcon />}
-        sx={{ mt: 1.5, color: "success.main", borderColor: "success.main" }}
+        sx={{ mt: 1, minHeight: 30, px: 1.25, color: "success.main", borderColor: "success.main", fontSize: "0.62rem", letterSpacing: "0.035em" }}
       >
         Add screen to {activeModule}
       </Button>
     </Box>
 
     {activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management" ? (
-      <Stack gap={2}>
+      <Stack gap={{ xs: 1.5, md: 2 }}>
         {fields.map((section) => (
-          <Accordion key={section.title} defaultExpanded disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "10px !important", boxShadow: "none", "&:before": { display: "none" } }}>
-            <AccordionSummary sx={{ px: 2, minHeight: 62 }}>
+          <Accordion key={section.title} defaultExpanded disableGutters sx={{ border: 1, borderColor: "divider", borderRadius: "8px !important", boxShadow: "none", backgroundImage: "none", "&:before": { display: "none" }, "&.Mui-expanded": { margin: 0 } }}>
+            <AccordionSummary sx={{ px: { xs: 1.25, md: 1.75 }, py: 0.5, minHeight: 52, "&.Mui-expanded": { minHeight: 52 }, "& .MuiAccordionSummary-content": { my: 0.75 }, "& .MuiAccordionSummary-content.Mui-expanded": { my: 0.75 } }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ textTransform: "uppercase" }}>{section.title}</Typography>
-                <Typography variant="caption" color="text.secondary">{section.description}</Typography>
+                <Typography variant="h6" sx={{ fontSize: "0.78rem", fontWeight: 800, letterSpacing: "0.06em", lineHeight: 1.25, textTransform: "uppercase" }}>{section.title}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.64rem", lineHeight: 1.3 }}>{section.description}</Typography>
               </Box>
             </AccordionSummary>
-            <AccordionDetails sx={{ px: { xs: 1, md: 2 }, pb: 2 }}>
-              <Stack gap={1.25}>
+            <AccordionDetails sx={{ px: { xs: 1, md: 1.5 }, pt: 0.5, pb: { xs: 1, md: 1.25 }, borderTop: 1, borderColor: "divider" }}>
+              <Stack gap={0.75}>
                 {section.fields.map((field) => (
                   <FieldRow
                     key={field.id}
@@ -512,18 +531,18 @@ const ScreenArchitect = ({
       direction={{ xs: "column", sm: "row" }}
       alignItems={{ xs: "flex-start", sm: "center" }}
       justifyContent="space-between"
-      gap={2}
-      sx={{ pt: 1.5 }}
+      gap={1.25}
+      sx={{ pt: 1 }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 410 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 460, fontSize: "0.62rem", lineHeight: 1.4 }}>
         <Box component="span" sx={{ color: "primary.main", fontWeight: 800 }}>
           Intelligent persistence:
         </Box>{" "}
         Changes are staged in the neural cache. Update to propagate to all cloud instances.
       </Typography>
-      <Stack direction="row" gap={1}>
-        <Button variant="outlined" onClick={onRevert}>Revert</Button>
-        <Button variant="contained" onClick={onSave}>Update architecture</Button>
+      <Stack direction="row" gap={0.75} sx={{ width: { xs: "100%", sm: "auto" } }}>
+        <Button variant="outlined" onClick={onRevert} sx={{ minHeight: 32, px: 1.25, fontSize: "0.64rem", fontWeight: 700 }}>Revert</Button>
+        <Button variant="contained" onClick={onSave} sx={{ minHeight: 32, px: 1.5, fontSize: "0.64rem", fontWeight: 700 }}>Update architecture</Button>
       </Stack>
     </Stack>
   </Stack>
@@ -531,7 +550,7 @@ const ScreenArchitect = ({
 };
 
 const ChipGroup = ({ items, active, onChange }: { items: string[]; active: string; onChange: (value: string) => void }) => (
-  <Stack direction="row" flexWrap="wrap" gap={0.75}>
+  <Stack direction="row" flexWrap="wrap" gap={0.5}>
     {items.map((item) => (
       <Chip
         key={item}
@@ -540,7 +559,7 @@ const ChipGroup = ({ items, active, onChange }: { items: string[]; active: strin
         onClick={() => onChange(item)}
         color={item === active ? "primary" : "default"}
         variant={item === active ? "filled" : "outlined"}
-        sx={{ fontSize: "0.62rem", maxWidth: "100%" }}
+        sx={{ height: 28, fontSize: "0.6rem", fontWeight: 650, letterSpacing: "0.02em", maxWidth: "100%", borderRadius: 1.25, "& .MuiChip-label": { px: 1.1 } }}
       />
     ))}
   </Stack>
@@ -557,6 +576,7 @@ const FieldRow = ({
   field: ArchitectField;
   onToggle: () => void;
   draggable?: boolean;
+  disabled?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   onDrop?: () => void;
@@ -569,38 +589,73 @@ const FieldRow = ({
     onDrop={onDrop}
     sx={{
       display: "grid",
-      gridTemplateColumns: { xs: "1fr auto", md: "42px minmax(100px, 1fr) minmax(120px, 1fr) minmax(80px, 0.7fr) auto" },
-      gap: { xs: 1, md: 2 },
+      gridTemplateColumns: {
+        xs: "1fr auto",
+        md: "28px minmax(0, 1.45fr) 96px 92px minmax(64px, 1fr)",
+      },
+      flexWrap: { xs: "wrap", md: "nowrap" },
+      gap: { xs: 0.75, md: 1.25 },
       alignItems: "center",
-      p: { xs: 1.25, md: 1.5 },
+      p: { xs: 0.75, md: 0.85 },
       bgcolor: "action.hover",
-      borderRadius: 1.5,
+      border: 1,
+      borderColor: "divider",
+      borderRadius: 1,
       cursor: draggable ? "grab" : "default",
+      transition: (theme) =>
+        theme.transitions.create(["background-color", "box-shadow", "transform"], {
+          duration: theme.transitions.duration.short,
+        }),
+      "&:hover": {
+        bgcolor: "background.paper",
+        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.08)",
+        transform: "translateY(-1px)",
+      },
       "&:active": { cursor: draggable ? "grabbing" : "default" },
+      "@media (prefers-reduced-motion: reduce)": {
+        transition: "background-color 150ms ease, box-shadow 150ms ease",
+        "&:hover": { transform: "none" },
+      },
     }}
   >
-    <Box sx={{ display: { xs: "none", md: "grid" }, placeItems: "center", width: 34, height: 34, borderRadius: 1.25, bgcolor: "primary.light", color: "primary.contrastText" }}>
+    <Box sx={{ display: { xs: "none", md: "grid" }, placeItems: "center", width: 26, height: 26, borderRadius: 1, bgcolor: "primary.light", color: "primary.contrastText" }}>
       {draggable ? <DragIndicatorIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
     </Box>
-    <Box>
-      <Typography variant="caption" color="text.secondary">Label</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 800, textTransform: "uppercase" }}>{field.label}</Typography>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.52rem", lineHeight: 1.1, letterSpacing: "0.04em" }}>Label</Typography>
+      <Typography variant="body2" sx={{ fontSize: "0.65rem", fontWeight: 750, lineHeight: 1.15, overflowWrap: "anywhere", textTransform: "uppercase" }}>{field.label}</Typography>
     </Box>
-    <Box sx={{ display: { xs: "none", md: "block" } }}>
-      <Typography variant="caption" color="text.secondary">Data type</Typography>
-      <Chip label={field.type} size="small" variant="outlined" />
+    <Box sx={{ display: { xs: "none", md: "block" }, minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.52rem", lineHeight: 1.1, letterSpacing: "0.04em" }}>Data type</Typography>
+      <Chip label={field.type} size="small" variant="outlined" sx={{ height: 20, fontSize: "0.52rem", borderRadius: 1, "& .MuiChip-label": { px: 0.65 } }} />
     </Box>
-    <Box sx={{ display: { xs: "none", md: "block" } }}>
-      <Typography variant="caption" color="text.secondary">Rules architect</Typography>
-      <Typography variant="caption" sx={{ display: "block", color: field.required ? "primary.main" : "text.secondary", fontWeight: 800, textTransform: "uppercase" }}>
+    <Box sx={{ display: { xs: "none", md: "block" }, minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.52rem", lineHeight: 1.1, letterSpacing: "0.04em" }}>Rules</Typography>
+      <Typography variant="caption" sx={{ display: "block", color: field.required ? "primary.main" : "text.secondary", fontSize: "0.56rem", fontWeight: 750, lineHeight: 1.2, textTransform: "uppercase" }}>
         {field.required ? "Required" : "Optional"}
       </Typography>
     </Box>
-    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={1}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }}>{field.id}</Typography>
-      <IconButton size="small" aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`} onClick={onToggle} color={field.visible ? "primary" : "default"}>
-        <VisibilityOutlinedIcon fontSize="small" />
-      </IconButton>
+    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={0.5} sx={{ minWidth: 0, display: { xs: "flex", md: "contents" } }}>
+      <Button
+        size="small"
+        variant={field.visible ? "contained" : "outlined"}
+        startIcon={<VisibilityOutlinedIcon sx={{ fontSize: "0.85rem !important" }} />}
+        aria-label={`${field.visible ? "Hide" : "Show"} ${field.label}`}
+        onClick={onToggle}
+        sx={{
+          minWidth: { xs: 30, md: 82 },
+          minHeight: 26,
+          px: { xs: 0.5, md: 1 },
+          fontSize: "0.5rem",
+          fontWeight: 800,
+          letterSpacing: "0.05em",
+          whiteSpace: "nowrap",
+          "& .MuiButton-startIcon": { mr: { xs: 0, md: 0.5 } },
+          "& .MuiButton-startIcon + *": { display: { xs: "none", md: "inline" } },
+        }}
+      >
+        {field.visible ? "Hide field" : "Show field"}
+      </Button>
     </Stack>
   </Box>
 );

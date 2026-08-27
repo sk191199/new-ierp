@@ -54,7 +54,9 @@ import { LeadFollowUpHistory, type FollowUpEditData } from "./components/LeadFol
 import {
   LEAD_CUSTOM_FIELDS_KEY,
   LEAD_FIELD_ORDER_KEY,
+  LEAD_FIELD_VISIBILITY_KEY,
   readLeadCustomFields,
+  readLeadFieldVisibility,
   readLeadFieldOrder,
   type LeadCustomField,
   type LeadFieldOrder,
@@ -93,12 +95,18 @@ export const LeadForm = ({
   const [showNewFollowUp, setShowNewFollowUp] = useState(mode === "create");
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
   const [fieldOrder, setFieldOrder] = useState<LeadFieldOrder>(readLeadFieldOrder);
+  const [fieldVisibility, setFieldVisibility] = useState(readLeadFieldVisibility);
   const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
 
   const renderCustomFields = (section: LeadCustomField["section"]) =>
     customFields
-      .filter((field) => field.screen === "Lead Management" && field.section === section)
+      .filter(
+        (field) =>
+          field.screen === "Lead Management" &&
+          field.section === section &&
+          fieldVisibility[field.id] !== false,
+      )
       .map((field) => (
         <TextFieldControl
           key={field.id}
@@ -120,6 +128,11 @@ export const LeadForm = ({
     };
 
     window.addEventListener(LEAD_FIELD_ORDER_KEY, updateFieldOrder);
+    const updateFieldVisibility = (event: Event) => {
+      const customEvent = event as CustomEvent<Record<string, boolean>>;
+      setFieldVisibility(customEvent.detail ?? readLeadFieldVisibility());
+    };
+    window.addEventListener(LEAD_FIELD_VISIBILITY_KEY, updateFieldVisibility);
     const updateCustomFields = (event: Event) => {
       const customEvent = event as CustomEvent<LeadCustomField[]>;
       setCustomFields(customEvent.detail ?? readLeadCustomFields());
@@ -127,9 +140,12 @@ export const LeadForm = ({
     window.addEventListener(LEAD_CUSTOM_FIELDS_KEY, updateCustomFields);
     return () => {
       window.removeEventListener(LEAD_FIELD_ORDER_KEY, updateFieldOrder);
+      window.removeEventListener(LEAD_FIELD_VISIBILITY_KEY, updateFieldVisibility);
       window.removeEventListener(LEAD_CUSTOM_FIELDS_KEY, updateCustomFields);
     };
   }, []);
+
+  const hiddenFields = (keys: string[]) => keys.filter((key) => fieldVisibility[key] === false);
 
   // ============================================================
   // DIALOG STATES
@@ -433,7 +449,7 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <FieldGrid fieldOrder={fieldOrder.primary}>
+            <FieldGrid fieldOrder={fieldOrder.primary} hiddenFieldKeys={hiddenFields(fieldOrder.primary)}>
               <TextFieldControl
                 name="companyName"
                 label="Company Name"
@@ -580,15 +596,17 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <SelectField
-              name="subsidiary"
-              label="Subsidiary"
-              value={value.subsidiary}
-              onChange={(next) => patch("subsidiary", next)}
-              options={leadSubsidiaryOptions}
-              includeEmpty
-            />
-            {renderCustomFields("Classification")}
+            <FieldGrid fieldOrder={fieldOrder.classification} hiddenFieldKeys={hiddenFields(fieldOrder.classification)}>
+              <SelectField
+                name="subsidiary"
+                label="Subsidiary"
+                value={value.subsidiary}
+                onChange={(next) => patch("subsidiary", next)}
+                options={leadSubsidiaryOptions}
+                includeEmpty
+              />
+              {renderCustomFields("Classification")}
+            </FieldGrid>
           </Stack>
         </FormSection>
 
@@ -609,24 +627,26 @@ export const LeadForm = ({
               pb: 1,
             }}
           >
-            <TextFieldControl
-              name="projectDescription"
-              label="Project Description"
-              multiline
-              minRows={4}
-              value={value.projectDescription}
-              onChange={(next) => patch("projectDescription", next)}
-            />
+            <FieldGrid fieldOrder={fieldOrder.additionalInformation} hiddenFieldKeys={hiddenFields(fieldOrder.additionalInformation)}>
+              <TextFieldControl
+                name="projectDescription"
+                label="Project Description"
+                multiline
+                minRows={4}
+                value={value.projectDescription}
+                onChange={(next) => patch("projectDescription", next)}
+              />
 
-            <TextFieldControl
-              name="notes"
-              label="Notes"
-              multiline
-              minRows={4}
-              value={value.notes}
-              onChange={(next) => patch("notes", next)}
-            />
-            {renderCustomFields("Additional Information")}
+              <TextFieldControl
+                name="notes"
+                label="Notes"
+                multiline
+                minRows={4}
+                value={value.notes}
+                onChange={(next) => patch("notes", next)}
+              />
+              {renderCustomFields("Additional Information")}
+            </FieldGrid>
           </Stack>
         </FormSection>
 
@@ -671,7 +691,7 @@ export const LeadForm = ({
                 pb: 1,
               }}
             >
-              <FieldGrid fieldOrder={fieldOrder.followUps}>
+              <FieldGrid fieldOrder={fieldOrder.followUps} hiddenFieldKeys={hiddenFields(fieldOrder.followUps)}>
                 {/* ========================================================
                     FOLLOW-UP DATE
                     Automatically uses today's date.

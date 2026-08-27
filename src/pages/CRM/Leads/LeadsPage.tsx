@@ -484,7 +484,7 @@ export const LeadsPage = () => {
             <Tooltip title="Worklist settings">
               <IconButton
                 aria-label="Worklist settings"
-                onClick={() => navigate(ROUTES.settings)}
+                onClick={() => navigate(ROUTES.settings.system)}
                 sx={{
                   width: 40,
                   height: 40,

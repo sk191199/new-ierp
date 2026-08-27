@@ -47,7 +47,7 @@ export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
               <item.icon fontSize="small" />
             </ListItemIcon>
             <Box sx={labelVisibilitySx(collapsed)}>
-              <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} />
+              <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps(collapsed)} />
             </Box>
             <Box sx={chevronVisibilitySx(collapsed)}>
               {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
@@ -72,7 +72,7 @@ export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
           <item.icon fontSize="small" />
         </ListItemIcon>
         <Box sx={labelVisibilitySx(collapsed)}>
-          <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps} />
+          <ListItemText primary={item.label} primaryTypographyProps={parentLabelProps(collapsed)} />
         </Box>
       </ListItemButton>
     </Tooltip>
@@ -99,27 +99,35 @@ const ChildLink = ({ label, path, pathname }: { label: string; path: string; pat
   );
 };
 
-const parentLabelProps = {
-  fontSize: "0.72rem",
-  fontWeight: 700,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase" as const,
-};
+const parentLabelProps = (collapsed: boolean) =>
+  collapsed
+    ? {
+        fontSize: "0.72rem",
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase" as const,
+      }
+    : {
+        fontSize: "0.68rem",
+        fontWeight: 650,
+        letterSpacing: "0.045em",
+        lineHeight: 1.2,
+      };
 
 const childLabelProps = {
-  fontSize: "0.72rem",
-  fontWeight: 700,
-  letterSpacing: "0.06em",
-  textTransform: "uppercase" as const,
+  fontSize: "0.67rem",
+  fontWeight: 600,
+  letterSpacing: "0.025em",
+  lineHeight: 1.2,
 };
 
 const parentButtonSx = (collapsed: boolean) => ({
   mx: 1,
-  mb: 0.25,
-  minHeight: 42,
+  mb: collapsed ? 0.25 : 0.15,
+  minHeight: collapsed ? 42 : 38,
   display: "flex",
   alignItems: "center",
-  borderRadius: 1.5,
+  borderRadius: collapsed ? 1.5 : 1,
   justifyContent: collapsed ? "center" : "flex-start",
   color: "chrome.sidebarMuted",
   bgcolor: "transparent",
@@ -130,11 +138,11 @@ const parentButtonSx = (collapsed: boolean) => ({
 
 const leafButtonSx = (active: boolean, collapsed: boolean) => ({
   mx: 1,
-  mb: 0.4,
-  minHeight: 40,
+  mb: collapsed ? 0.4 : 0.2,
+  minHeight: collapsed ? 40 : 38,
   display: "flex",
   alignItems: "center",
-  borderRadius: 2,
+  borderRadius: collapsed ? 2 : 1,
   justifyContent: collapsed ? "center" : "flex-start",
   color: active ? "primary.light" : "chrome.sidebarMuted",
   bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.16) : "transparent"),
@@ -149,12 +157,12 @@ const leafButtonSx = (active: boolean, collapsed: boolean) => ({
 
 const childButtonSx = (active: boolean) => ({
   mx: 1.25,
-  mb: 0.35,
-  minHeight: 34,
+  mb: 0.2,
+  minHeight: 32,
   display: "flex",
   alignItems: "center",
-  borderRadius: 2,
-  pl: 1.5,
+  borderRadius: 1,
+  pl: 2.25,
   color: active ? "primary.light" : "chrome.sidebarMuted",
   bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.16) : "transparent"),
   "&:hover": {

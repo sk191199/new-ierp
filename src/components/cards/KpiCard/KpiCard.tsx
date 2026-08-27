@@ -4,6 +4,7 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import SouthEastIcon from "@mui/icons-material/SouthEast";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { Box, Card, CardContent, Chip, Stack, Typography } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 import type { KpiIconKey, KpiMetric } from "@/models/dashboard/dashboard";
 
 interface KpiCardProps {
@@ -15,6 +16,25 @@ const kpiIcons: Record<KpiIconKey, typeof PeopleAltOutlinedIcon> = {
   check: CheckCircleOutlineIcon,
   trend: TrendingUpIcon,
 };
+
+const kpiCardSx = (theme: Theme) => ({
+  height: "100%",
+  borderRadius: 2.5,
+  transition: theme.transitions.create(["transform", "box-shadow", "border-color"], {
+    duration: theme.transitions.duration.short,
+    easing: theme.transitions.easing.easeOut,
+  }),
+  "&:hover": {
+    transform: "scale(1.02)",
+    boxShadow: `0 12px 28px ${theme.palette.primary.main}2E`,
+  },
+  "@media (prefers-reduced-motion: reduce)": {
+    transition: "border-color 150ms ease, box-shadow 150ms ease",
+    "&:hover": {
+      transform: "none",
+    },
+  },
+});
 
 export const KpiCard = ({ metric }: KpiCardProps) => {
   const trend = metric.trendPercent;
@@ -32,7 +52,7 @@ export const KpiCard = ({ metric }: KpiCardProps) => {
 
   if (Icon) {
     return (
-      <Card sx={{ height: "100%", borderRadius: 2.5 }}>
+      <Card sx={kpiCardSx}>
         <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1}>
             <Box
@@ -78,7 +98,7 @@ export const KpiCard = ({ metric }: KpiCardProps) => {
   }
 
   return (
-    <Card sx={{ height: "100%" }}>
+    <Card sx={kpiCardSx}>
       <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
         <Typography variant="caption" color="text.secondary">
           {metric.label.toUpperCase()}
