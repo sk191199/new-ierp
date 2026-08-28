@@ -2,9 +2,10 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { Avatar, Box, Button, List, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useEffect, useState } from "react";
+import { getAllModules } from "@/configurations/api/modulesApi";
+import { MODULES_UPDATED_EVENT } from "@/configurations/api/modulesApi";
 import { useAuth } from "@/hooks/useAuth";
-import { navigationItems } from "./navigationConfig";
-import { SETTINGS_CATALOG_KEY } from "@/pages/Settings/settingsCatalog";
+import { navigationItems, navigationItemsFromModules, systemSettingsNavigationItems } from "./navigationConfig";
 import { SidebarItem } from "./SidebarItem";
 
 interface SidebarProps {
@@ -14,12 +15,28 @@ interface SidebarProps {
 
 export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
   const { user } = useAuth();
-  const [items, setItems] = useState(navigationItems());
+  const [items, setItems] = useState(() => [...navigationItems(), ...systemSettingsNavigationItems()]);
 
   useEffect(() => {
-    const refresh = () => setItems(navigationItems());
-    window.addEventListener(SETTINGS_CATALOG_KEY, refresh);
-    return () => window.removeEventListener(SETTINGS_CATALOG_KEY, refresh);
+    let active = true;
+
+    const loadModules = () => getAllModules()
+      .then((modules) => {
+        if (active) {
+          setItems([...navigationItems(), ...navigationItemsFromModules(modules), ...systemSettingsNavigationItems()]);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load sidebar modules.", error);
+      });
+
+    void loadModules();
+    window.addEventListener(MODULES_UPDATED_EVENT, loadModules);
+
+    return () => {
+      active = false;
+      window.removeEventListener(MODULES_UPDATED_EVENT, loadModules);
+    };
   }, []);
 
   return (

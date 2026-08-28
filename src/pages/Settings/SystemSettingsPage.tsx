@@ -33,7 +33,9 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { MetadataModule } from "@/models/metadata/metadata";
+import { createDynamicModuleEntity, createSettingsModule, createSettingsScreen, getAllModules, notifyModulesUpdated } from "@/configurations/api/settingsService";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import {
   readLeadCustomFields,
@@ -46,7 +48,8 @@ import {
 } from "@/pages/CRM/Leads/leadFieldOrder";
 import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
-import { readSectionsByScreen, readSettingsCatalog, saveSectionsByScreen, saveSettingsCatalog, settingsScreenKey, type SettingsCatalog } from "./settingsCatalog";
+import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
+import { readSectionsByScreen, saveSectionsByScreen, settingsScreenKey, settingsSlug, type SettingsCatalog } from "./settingsCatalog";
 
 const settingsSections = [
   { label: "General Workspace", icon: TuneOutlinedIcon },
@@ -204,9 +207,11 @@ const buildFieldsForScreen = (
 
 export const SystemSettingsPage = () => {
   const [activeSection, setActiveSection] = useState("Screen Architect");
-  const [activeModule, setActiveModule] = useState("CRM & Customer Engagement");
-  const [activeScreen, setActiveScreen] = useState("Lead Management");
-  const [catalog, setCatalog] = useState<SettingsCatalog>(() => readSettingsCatalog());
+  const [activeModule, setActiveModule] = useState("");
+  const [activeScreen, setActiveScreen] = useState("");
+  const [catalog, setCatalog] = useState<SettingsCatalog>({ modules: [], screensByModule: {} });
+  const [backendModules, setBackendModules] = useState<MetadataModule[]>([]);
+  const [modulesLoading, setModulesLoading] = useState(true);
   const [fields, setFields] = useState(() => buildFieldsForScreen(activeModule, activeScreen, readSectionsByScreen(), readLeadCustomFields()));
   const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
   const [customFieldDialogOpen, setCustomFieldDialogOpen] = useState(false);
@@ -223,6 +228,40 @@ export const SystemSettingsPage = () => {
   const modules = catalog.modules;
   const screensByModule = catalog.screensByModule;
 
+  const applyBackendModules = useCallback((nextModules: MetadataModule[], preferredModule?: string, preferredScreen?: string) => {
+    const nextCatalog: SettingsCatalog = {
+      modules: nextModules.map((module) => module.name),
+      screensByModule: Object.fromEntries(nextModules.map((module) => [module.name, module.screens.map((screen) => screen.name)])),
+    };
+    setBackendModules(nextModules);
+    setCatalog(nextCatalog);
+
+    const nextModule = nextModules.find((module) => module.name === preferredModule) ?? nextModules[0];
+    const nextScreen = nextModule?.screens.find((screen) => screen.name === preferredScreen) ?? nextModule?.screens[0];
+    const nextModuleName = nextModule?.name ?? "";
+    const nextScreenName = nextScreen?.name ?? "";
+    setActiveModule(nextModuleName);
+    setActiveScreen(nextScreenName);
+    setCustomFieldModule(nextModuleName);
+    setFields(buildFieldsForScreen(nextModuleName, nextScreenName, readSectionsByScreen(), readLeadCustomFields()));
+  }, []);
+
+  const loadBackendModules = useCallback(async (preferredModule?: string, preferredScreen?: string) => {
+    setModulesLoading(true);
+    try {
+      const loadedModules = await getAllModules();
+      applyBackendModules(loadedModules, preferredModule, preferredScreen);
+    } catch (cause) {
+      dispatch(toastShown({ message: `Failed to load modules. ${getErrorMessage(cause)}`, severity: "error" }));
+    } finally {
+      setModulesLoading(false);
+    }
+  }, [applyBackendModules, dispatch]);
+
+  useEffect(() => {
+    void loadBackendModules();
+  }, [loadBackendModules]);
+
   const toggleField = (id: string) => {
     setFields((current) => current.map((section) => ({
       ...section,
@@ -234,6 +273,7 @@ export const SystemSettingsPage = () => {
     const screens = screensByModule[module] ?? [];
     setActiveModule(module);
     setActiveScreen(screens[0] ?? "");
+    setCustomFieldModule(module);
     setFields(buildFieldsForScreen(module, screens[0] ?? "", sectionsByScreen, customFields));
   };
 
@@ -242,28 +282,43 @@ export const SystemSettingsPage = () => {
     setFields(buildFieldsForScreen(activeModule, screen, sectionsByScreen, customFields));
   };
 
-  const addModule = () => {
+  const addModule = async () => {
     const name = moduleName.trim();
-    if (!name || catalog.modules.includes(name)) return;
-    const next = { ...catalog, modules: [...catalog.modules, name], screensByModule: { ...catalog.screensByModule, [name]: [] } };
-    setCatalog(next);
-    saveSettingsCatalog(next);
-    setModuleName("");
-    setModuleDialogOpen(false);
-    dispatch(toastShown({ message: "Module added successfully.", severity: "success" }));
+    if (!name || catalog.modules.includes(name) || modulesLoading) return;
+    try {
+      await createSettingsModule({ name });
+      setModuleName("");
+      setModuleDialogOpen(false);
+      await loadBackendModules(name);
+      notifyModulesUpdated();
+      dispatch(toastShown({ message: "Module added successfully.", severity: "success" }));
+    } catch (cause) {
+      dispatch(toastShown({ message: `Failed to create module. ${getErrorMessage(cause)}`, severity: "error" }));
+    }
   };
 
-  const addScreen = () => {
+  const addScreen = async () => {
     const name = screenName.trim();
-    if (!name || (screensByModule[activeModule] ?? []).includes(name)) return;
-    const next = { ...catalog, screensByModule: { ...screensByModule, [activeModule]: [...(screensByModule[activeModule] ?? []), name] } };
-    setCatalog(next);
-    saveSettingsCatalog(next);
-    setActiveScreen(name);
-    setFields(buildFieldsForScreen(activeModule, name, sectionsByScreen, customFields));
-    setScreenName("");
-    setScreenDialogOpen(false);
-    dispatch(toastShown({ message: "Screen added successfully.", severity: "success" }));
+    const module = backendModules.find((item) => item.name === activeModule);
+    if (!name || !module || (screensByModule[activeModule] ?? []).includes(name) || modulesLoading) return;
+    try {
+      if (module.source === "dynamic") {
+        await createDynamicModuleEntity(module.id, {
+          entityName: settingsSlug(name),
+          displayName: name,
+          isActive: true,
+        });
+      } else {
+        await createSettingsScreen({ moduleId: module.id, name });
+      }
+      setScreenName("");
+      setScreenDialogOpen(false);
+      await loadBackendModules(activeModule, name);
+      notifyModulesUpdated();
+      dispatch(toastShown({ message: "Screen added successfully.", severity: "success" }));
+    } catch (cause) {
+      dispatch(toastShown({ message: `Failed to create screen. ${getErrorMessage(cause)}`, severity: "error" }));
+    }
   };
 
   const reorderFields = (sectionTitle: string, sourceId: string, targetId: string) => {
@@ -869,8 +924,8 @@ const FieldRow = ({
       display: "grid",
       gridTemplateColumns: {
         xs: "40px minmax(0, 1fr)",
-        sm: "42px minmax(180px, 1.3fr) minmax(130px, 0.85fr) minmax(130px, 0.85fr) minmax(150px, 0.8fr)",
-        md: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
+        sm: "42px minmax(0, 1.3fr) minmax(0, 0.85fr) minmax(0, 0.85fr) minmax(110px, 0.8fr)",
+        md: "42px minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr) minmax(110px, 0.9fr)",
       },
       gap: { xs: 1.25, md: 2 },
       alignItems: "center",

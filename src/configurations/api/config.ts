@@ -5,6 +5,8 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5080";
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+// Dashboard snapshot is not available in the deployed API yet.
+export const USE_MOCK_DASHBOARD = import.meta.env.VITE_USE_MOCK_DASHBOARD !== "false";
 export const USE_MOCK_LEADS = import.meta.env.VITE_USE_MOCK_LEADS !== "false";
 export const USE_MOCK_OPPORTUNITIES = import.meta.env.VITE_USE_MOCK_OPPORTUNITIES !== "false";
 export const USE_DEV_HEADERS = import.meta.env.VITE_USE_DEV_HEADERS !== "false";
@@ -28,7 +30,7 @@ export const API_ENDPOINTS = {
   },
   followUps: (id: string) => `/api/crm/followups/${id}`,
   opportunities: {
-    list: "/api/crm/opportunities",
+    list: "/api/v1/crm/opportunities",
     byId: (id: string) => `/api/crm/opportunities/${id}`,
     convertToSalesEnquiry: (id: string) => `/api/crm/opportunities/${id}/convert-to-sales-enquiry`,
     convertLead: (leadId: string) => `/api/crm/leads/${leadId}/convert-to-opportunity`,
@@ -38,7 +40,13 @@ export const API_ENDPOINTS = {
   },
   metadata: {
     screen: (screenCode: string) => `/api/v1/metadata/screens/${screenCode}`,
+    modules: "/api/v1/metadata/modules?activeOnly=true",
+    createModule: "/api/v1/dynamic_modules",
+    screensByModule: (moduleId: string) => `/api/v1/metadata/modules/${moduleId}/screens`,
+    createScreen: (moduleId: string) => `/api/v1/metadata/modules/${moduleId}/screens`,
   },
+  dynamicModules: "/api/v1/dynamic_modules",
+  dynamicModuleEntities: (moduleId: string) => `/api/v1/dynamic_modules/${moduleId}/entities`,
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 20;

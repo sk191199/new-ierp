@@ -1,17 +1,35 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, Button, Card, CardContent, Stack, TextField, Typography } from "@mui/material";
 import { useParams } from "react-router-dom";
+import { getAllModules } from "@/configurations/api/settingsService";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import { FormSection } from "@/components/forms/FormSection";
 import { readLeadCustomFields, type LeadCustomField } from "@/pages/CRM/Leads/leadFieldOrder";
 import { readSectionsByScreen, settingsScreenKey, settingsSlug } from "./settingsCatalog";
-import { readSettingsCatalog } from "./settingsCatalog";
 
 export const ConfiguredScreenPage = () => {
   const { module: moduleSlug, screen: screenSlug } = useParams();
-  const catalog = readSettingsCatalog();
-  const moduleName = catalog.modules.find((value) => settingsSlug(value) === moduleSlug) ?? "Configured Module";
-  const screenName = (catalog.screensByModule[moduleName] ?? []).find((value) => settingsSlug(value) === screenSlug) ?? "Configured Screen";
+  const [moduleName, setModuleName] = useState("Configured Module");
+  const [screenName, setScreenName] = useState("Configured Screen");
+
+  useEffect(() => {
+    let active = true;
+    void getAllModules()
+      .then((modules) => {
+        const module = modules.find((item) => settingsSlug(item.name) === moduleSlug);
+        const screen = module?.screens.find((item) => settingsSlug(item.name) === screenSlug);
+        if (active) {
+          setModuleName(module?.name ?? "Configured Module");
+          setScreenName(screen?.name ?? "Configured Screen");
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [moduleSlug, screenSlug]);
+
   const customFields = readLeadCustomFields().filter((field) => field.module === moduleName && field.screen === screenName);
   const sectionsByScreen = useMemo(() => readSectionsByScreen(), []);
   const sections = useMemo(

@@ -41,6 +41,7 @@ const CustomerMasterPage = lazy(() =>
     default: module.CustomerMasterPage,
   })),
 );
+
 const ModulePlaceholder = lazy(() =>
   import("@/pages/ModulePlaceholder/ModulePlaceholder").then((module) => ({
     default: module.ModulePlaceholder,
