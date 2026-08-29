@@ -55,7 +55,7 @@ export const getModules = async (): Promise<MetadataModule[]> => {
 
 export const getSettingsModules = getModules;
 
-const normalizeKey = (value: string): string => value.trim().toLowerCase();
+const normalizeKey = (value: string): string => settingsSlug(value);
 
 const screenKey = (screen: { id?: string; code?: string; name: string }): string =>
   normalizeKey(screen.id ?? screen.code ?? screen.name);

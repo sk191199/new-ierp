@@ -181,6 +181,14 @@ export const AppRoutes = () => {
               path: "/settings/catalog/:module",
               element: <ConfiguredScreenPage />,
             },
+            {
+              path: "/dynamic/:module/:screen",
+              element: <ConfiguredScreenPage />,
+            },
+            {
+              path: "/dynamic/:module",
+              element: <ConfiguredScreenPage />,
+            },
           ],
         },
       ],

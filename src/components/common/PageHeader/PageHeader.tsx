@@ -22,7 +22,7 @@ export const PageHeader = ({ title, description, eyebrow, badge, actions, upperc
       {eyebrow ? (
         <Typography
           variant="caption"
-          color="text.secondary"
+          color="blue"
           sx={{ display: "block", mb: 0.5, letterSpacing: "0.12em", textTransform: "uppercase" }}
         >
           {eyebrow}

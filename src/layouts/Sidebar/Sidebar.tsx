@@ -106,7 +106,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
         </Box>
       </Stack>
 
-      <List sx={{ flex: 1, overflowY: "auto", py: 0.5 }}>
+      <List sx={{ flex: 1, overflowY: "auto", py: 0.5, scrollbarGutter: "stable" }}>
         {items.map((item) => (
           <SidebarItem key={item.label} item={item} collapsed={collapsed} />
         ))}
