@@ -599,13 +599,13 @@ export const SystemSettingsPage = () => {
         }}
         PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}
       >
-        <DialogTitle sx={{ px: { xs: 2, sm: 3 } }}>Add module</DialogTitle>
+        <DialogTitle sx={{ px: { xs: 2, sm: 3 } }}>Add Module</DialogTitle>
         <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
           <TextField autoFocus fullWidth label="Module name" value={moduleName} onChange={(event) => setModuleName(event.target.value)} sx={{ mt: 1 }} />
         </DialogContent>
         <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
           <Button onClick={() => setModuleDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={addModule} disabled={!moduleName.trim()}>Add module</Button>
+          <Button variant="contained" onClick={addModule} disabled={!moduleName.trim()}>Add Module</Button>
         </DialogActions>
       </Dialog>
       <Dialog open={screenDialogOpen} onClose={() => setScreenDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}>
@@ -703,7 +703,7 @@ const ScreenArchitect = ({
             "&:hover": { color: "success.dark", borderColor: "success.main", bgcolor: "background.paper" },
           }}
         >
-          Add module
+          Add Module
         </Button>
       </Stack>
     </Box>
