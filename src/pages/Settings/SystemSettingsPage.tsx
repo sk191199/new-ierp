@@ -869,6 +869,7 @@ const ScreenArchitect = ({
       <Typography variant="overline" color="text.secondary" sx={{ display: "block", fontWeight: 800, lineHeight: 1.5 }}>
         Module
       </Typography>
+      
       <Stack direction={{ xs: "column", md: "row" }} alignItems={{ xs: "stretch", md: "center" }} gap={1.25} sx={{ mt: 0.75 }}>
         <ChipGroup items={modules} active={activeModule} onChange={onModuleChange} />
         <Button
