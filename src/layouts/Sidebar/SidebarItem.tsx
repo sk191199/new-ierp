@@ -42,8 +42,8 @@ export const SidebarItem = ({ item, collapsed }: SidebarItemProps) => {
     return (
       <Box>
         <Tooltip title={collapsed ? item.label : ""} placement="right">
-          <ListItemButton onClick={() => setOpen((current) => !current)} sx={parentButtonSx(collapsed)}>
-            <ListItemIcon sx={iconSx(false)}>
+          <ListItemButton onClick={() => setOpen((current) => !current)} sx={parentButtonSx(collapsed, childActive || selfActive)}>
+            <ListItemIcon sx={iconSx(childActive || selfActive)}>
               <item.icon fontSize="small" />
             </ListItemIcon>
             <Box sx={labelVisibilitySx(collapsed)}>
@@ -113,7 +113,7 @@ const childLabelProps = {
   textTransform: "uppercase" as const,
 };
 
-const parentButtonSx = (collapsed: boolean) => ({
+const parentButtonSx = (collapsed: boolean, active: boolean) => ({
   mx: 1,
   mb: 0.25,
   minHeight: 42,
@@ -121,10 +121,10 @@ const parentButtonSx = (collapsed: boolean) => ({
   alignItems: "center",
   borderRadius: 1.5,
   justifyContent: collapsed ? "center" : "flex-start",
-  color: "chrome.sidebarMuted",
-  bgcolor: "transparent",
+  color: active ? "common.white" : "chrome.sidebarMuted",
+  bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.88) : "transparent"),
   "&:hover": {
-    bgcolor: "chrome.sidebarHover",
+    bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.94) : theme.palette.chrome.sidebarHover),
   },
 });
 
@@ -136,14 +136,14 @@ const leafButtonSx = (active: boolean, collapsed: boolean) => ({
   alignItems: "center",
   borderRadius: 2,
   justifyContent: collapsed ? "center" : "flex-start",
-  color: active ? "primary.light" : "chrome.sidebarMuted",
-  bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.16) : "transparent"),
+  color: active ? "common.white" : "chrome.sidebarMuted",
+  bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.88) : "transparent"),
   "&:hover": {
-    bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.22) : theme.palette.chrome.sidebarHover),
+    bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.94) : theme.palette.chrome.sidebarHover),
   },
   "&.Mui-selected": {
-    bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.16),
-    color: "primary.light",
+    bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.88),
+    color: "common.white",
   },
 });
 
@@ -155,16 +155,16 @@ const childButtonSx = (active: boolean) => ({
   alignItems: "center",
   borderRadius: 2,
   pl: 1.5,
-  color: active ? "primary.light" : "chrome.sidebarMuted",
-  bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.16) : "transparent"),
+  color: active ? "common.white" : "chrome.sidebarMuted",
+  bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.88) : "transparent"),
   "&:hover": {
-    bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.22) : theme.palette.chrome.sidebarHover),
+    bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.94) : theme.palette.chrome.sidebarHover),
   },
   "&.Mui-selected": {
-    bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.16),
-    color: "primary.light",
+    bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.88),
+    color: "common.white",
     "&:hover": {
-      bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.22),
+      bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.94),
     },
   },
 });
@@ -175,7 +175,7 @@ const iconSx = (active: boolean) => ({
   flexShrink: 0,
   display: "grid",
   placeItems: "center",
-  color: active ? "primary.light" : "chrome.sidebarMuted",
+  color: active ? "common.white" : "chrome.sidebarMuted",
 });
 
 const labelVisibilitySx = (collapsed: boolean) => ({

@@ -411,20 +411,22 @@ export const SystemSettingsPage = () => {
                   px: 1.5,
                   border: 1,
                   borderColor: "transparent",
-                  color: active ? "primary.contrastText" : "text.secondary",
-                  bgcolor: active ? "primary.main" : "transparent",
+                  color: active ? "#F8FAFC" : "#5D6B82",
+                  bgcolor: active ? "#16263F" : "transparent",
                   borderRadius: 1.5,
-                  fontSize: "0.72rem",
-                  fontWeight: active ? 800 : 650,
-                  letterSpacing: "0.04em",
-                  textTransform: "none",
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "11px",
+                  lineHeight: "16.5px",
+                  fontWeight: 700,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
                   whiteSpace: "nowrap",
                   "& .MuiButton-startIcon": {
-                    color: active ? "primary.contrastText" : "text.secondary",
+                    color: active ? "#F8FAFC" : "#5D6B82",
                     mr: 1,
                   },
                   "&:hover": {
-                    bgcolor: active ? "primary.main" : "action.hover",
+                    bgcolor: active ? "#16263F" : "action.hover",
                     borderColor: active ? "transparent" : "divider",
                   },
                 }}
@@ -487,9 +489,31 @@ export const SystemSettingsPage = () => {
         onClose={() => setCustomFieldDialogOpen(false)}
         fullWidth
         maxWidth="xs"
+        slotProps={{
+          backdrop: {
+            sx: {
+              backdropFilter: "blur(6px)",
+              backgroundColor: "rgba(15, 23, 42, 0.45)",
+            },
+          },
+        }}
         PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}
       >
-        <DialogTitle sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 1 }}>Add custom field</DialogTitle>
+        <DialogTitle
+          sx={{
+            px: { xs: 2, sm: 3 },
+            pt: 2.5,
+            pb: 1,
+            fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+            fontSize: "9px",
+            lineHeight: 1.4,
+            letterSpacing: "1.1px",
+            textTransform: "uppercase",
+            fontWeight: 700,
+          }}
+        >
+          Add Custom Field
+        </DialogTitle>
         <DialogContent sx={{ px: { xs: 2, sm: 3 }, maxHeight: { xs: "70vh", sm: "none" } }}>
           <Stack gap={2} sx={{ pt: 1 }}>
             <TextField
@@ -514,6 +538,24 @@ export const SystemSettingsPage = () => {
               fullWidth
               error={Boolean(customFieldError)}
               helperText={customFieldError || undefined}
+              sx={{
+                "& .MuiInputLabel-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+                "& .MuiInputBase-input, & .MuiSelect-select, & .MuiFormHelperText-root, & .MuiMenuItem-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+              }}
             >
               {modules.map((module) => <MenuItem key={module} value={module}>{module}</MenuItem>)}
             </TextField>
@@ -529,6 +571,24 @@ export const SystemSettingsPage = () => {
               }}
               fullWidth
               error={Boolean(customFieldError)}
+              sx={{
+                "& .MuiInputLabel-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+                "& .MuiInputBase-input, & .MuiSelect-select, & .MuiMenuItem-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+              }}
             >
               {(screensByModule[customFieldModule] ?? []).map((screen) => <MenuItem key={screen} value={screen}>{screen}</MenuItem>)}
             </TextField>
@@ -538,12 +598,53 @@ export const SystemSettingsPage = () => {
               value={customFieldDraft.section}
               onChange={(event) => setCustomFieldDraft((current) => ({ ...current, section: event.target.value }))}
               fullWidth
+              sx={{
+                "& .MuiInputLabel-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+                "& .MuiInputBase-input, & .MuiSelect-select, & .MuiMenuItem-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+              }}
             >
               {(sectionsByScreen[settingsScreenKey(customFieldDraft.module, customFieldDraft.screen)] ?? sectionsByScreen[customFieldDraft.screen] ?? []).map((section) => <MenuItem key={section} value={section}>{section}</MenuItem>)}
               <MenuItem value="__new__">Add new section</MenuItem>
             </TextField>
             {customFieldDraft.section === "__new__" ? (
-              <TextField label="New section name" value={newSectionName} onChange={(event) => setNewSectionName(event.target.value)} fullWidth />
+              <TextField
+                label="New section name"
+                value={newSectionName}
+                onChange={(event) => setNewSectionName(event.target.value)}
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": {
+                    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                    fontSize: "9px",
+                    lineHeight: 1.4,
+                    letterSpacing: "1.1px",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                  },
+                  "& .MuiInputBase-input": {
+                    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                    fontSize: "9px",
+                    lineHeight: 1.4,
+                    letterSpacing: "1.1px",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                  },
+                }}
+              />
             ) : null}
             <TextField
               autoFocus
@@ -551,6 +652,24 @@ export const SystemSettingsPage = () => {
               value={customFieldDraft.label}
               onChange={(event) => setCustomFieldDraft((current) => ({ ...current, label: event.target.value }))}
               fullWidth
+              sx={{
+                "& .MuiInputLabel-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+                "& .MuiInputBase-input": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+              }}
             />
             <TextField
               select
@@ -558,17 +677,59 @@ export const SystemSettingsPage = () => {
               value={customFieldDraft.type}
               onChange={(event) => setCustomFieldDraft((current) => ({ ...current, type: event.target.value as LeadCustomField["type"] }))}
               fullWidth
+              sx={{
+                "& .MuiInputLabel-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+                "& .MuiInputBase-input, & .MuiSelect-select, & .MuiMenuItem-root": {
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                },
+              }}
             >
               {(["Text / Char", "Number", "Date", "Long Text"] as const).map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
             </TextField>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="body2">Required field</Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  letterSpacing: "1.1px",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                }}
+              >
+                Required field
+              </Typography>
               <Switch checked={customFieldDraft.required} onChange={(event) => setCustomFieldDraft((current) => ({ ...current, required: event.target.checked }))} />
             </Stack>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, gap: 1, "& .MuiButton-root": { minHeight: 40 } }}>
-          <Button onClick={() => setCustomFieldDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => setCustomFieldDialogOpen(false)}
+            sx={{
+              fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+              fontSize: "9px",
+              lineHeight: 1.4,
+              letterSpacing: "1.1px",
+              textTransform: "uppercase",
+              fontWeight: 700,
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={addCustomField}
@@ -579,6 +740,14 @@ export const SystemSettingsPage = () => {
               !customFieldDraft.label.trim() ||
               (!customFieldDraft.section.trim() || (customFieldDraft.section === "__new__" && !newSectionName.trim()))
             }
+            sx={{
+              fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+              fontSize: "9px",
+              lineHeight: 1.4,
+              letterSpacing: "1.1px",
+              textTransform: "uppercase",
+              fontWeight: 700,
+            }}
           >
             Add field
           </Button>
@@ -608,14 +777,28 @@ export const SystemSettingsPage = () => {
           <Button variant="contained" onClick={addModule} disabled={!moduleName.trim()}>Add Module</Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={screenDialogOpen} onClose={() => setScreenDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}>
-        <DialogTitle sx={{ px: { xs: 2, sm: 3 }, overflowWrap: "anywhere" }}>Add screen to {activeModule}</DialogTitle>
+      <Dialog
+        open={screenDialogOpen}
+        onClose={() => setScreenDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        slotProps={{
+          backdrop: {
+            sx: {
+              backdropFilter: "blur(6px)",
+              backgroundColor: "rgba(15, 23, 42, 0.45)",
+            },
+          },
+        }}
+        PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}
+      >
+        <DialogTitle sx={{ px: { xs: 2, sm: 3 }, overflowWrap: "anywhere" }}>Add Screen to {activeModule}</DialogTitle>
         <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
           <TextField autoFocus fullWidth label="Screen name" value={screenName} onChange={(event) => setScreenName(event.target.value)} sx={{ mt: 1 }} />
         </DialogContent>
         <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
           <Button onClick={() => setScreenDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={addScreen} disabled={!screenName.trim()}>Add screen</Button>
+          <Button variant="contained" onClick={addScreen} disabled={!screenName.trim()}>Add Screen</Button>
         </DialogActions>
       </Dialog>
     </Stack>
@@ -665,7 +848,7 @@ const ScreenArchitect = ({
       sx={{ pb: { xs: 0.5, md: 1 } }}
     >
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="h4" sx={{ fontSize: { xs: "1.25rem", md: "1.5rem" }, fontWeight: 800 }}>
+        <Typography variant="h4" sx={{ fontSize: { xs: "14px", md: "14px", fontFamily:"Inter, ui-sans-serif, system-ui, sans-serif;", lineHeight:"21px", letterSpacing:"1.4px", textTransform:'uppercase' }, fontWeight: 800 }}>
           Screen Architect
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 560 }}>
@@ -678,7 +861,7 @@ const ScreenArchitect = ({
         onClick={onAddCustomField}
         sx={{ alignSelf: { sm: "flex-start" }, minHeight: 42, whiteSpace: "nowrap", boxShadow: "none" }}
       >
-        Add custom field
+        Add Custom Field
       </Button>
     </Stack>
 
@@ -723,7 +906,7 @@ const ScreenArchitect = ({
           onClick={onAddScreen}
           sx={{ alignSelf: { xs: "flex-start", md: "center" }, color: "success.main", borderColor: "success.main", whiteSpace: "nowrap", "&:hover": { color: "success.dark", borderColor: "success.main", bgcolor: "background.paper" } }}
         >
-          Add screen
+          Add Screen
         </Button>
       </Stack>
       <Box sx={{ mt: 1 }}>
@@ -838,7 +1021,17 @@ const ChipGroup = ({ items, active, onChange }: { items: string[]; active: strin
         onClick={() => onChange(item)}
         color={item === active ? "primary" : "default"}
         variant={item === active ? "filled" : "outlined"}
-        sx={{ fontSize: "0.68rem", maxWidth: { xs: 260, md: "100%" }, flexShrink: 0, height: 30, borderRadius: 1.25, fontWeight: item === active ? 800 : 650, transition: "background-color 160ms ease, border-color 160ms ease" }}
+        sx={{
+          fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+          fontSize: "9px",
+          textTransform: "uppercase",
+          maxWidth: { xs: 260, md: "100%" },
+          flexShrink: 0,
+          height: 30,
+          borderRadius: 1.25,
+          fontWeight: item === active ? 800 : 650,
+          transition: "background-color 160ms ease, border-color 160ms ease",
+        }}
       />
     ))}
   </Stack>

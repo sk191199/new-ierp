@@ -10,6 +10,7 @@ import ConvertOpportunityDialog, {
 } from "../Opportunities/ConvertOpportunityDialog";
 
 import {
+  Box,
   Button,
   Collapse,
   Dialog,
@@ -898,114 +899,128 @@ export const LeadForm = ({
             FORM ACTION BUTTONS
             ============================================================ */}
 
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          gap={1.25}
+        <Box
           sx={{
-            mt: 1,
-            pt: 2,
-            position: "sticky",
-            bottom: 16,
-            zIndex: 2,
-            p: { xs: 1.25, md: 1.5 },
-            borderRadius: 2.5,
-            bgcolor: "background.paper",
-            boxShadow: (theme) => theme.palette.mode === "light"
-              ? "0 10px 30px rgba(15, 23, 42, 0.16)"
-              : "0 10px 30px rgba(0, 0, 0, 0.42)",
-
-            "& .MuiButton-root": {
-              minHeight: 40,
-              fontFamily: "Inter, sans-serif",
-              fontSize: "11px",
-              fontWeight: 700,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              whiteSpace: "nowrap",
-              padding: "22px",
-            },
+            display: "flex",
+            width: "100%",
+            justifyContent: "center",
           }}
         >
-          {/* CONVERT TO OPPORTUNITY */}
-
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<SwapHorizOutlinedIcon />}
-            // IMPORTANT: Keep this button enabled so clicking it can reveal
-            // the existing LeadForm validation errors for incomplete leads.
-            onClick={handleConvertToOpportunity}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            gap={1}
             sx={{
-              flex: 1,
-              bgcolor: "#e8f9f3",
-              color: "#0aae83",
-              borderColor: "#b9eadc",
-
-              "&:hover": {
-                bgcolor: "#d9f5ec",
-                borderColor: "#0aae83",
-              },
-            }}
-          >
-            CONVERT TO OPPORTUNITY
-          </Button>
-
-          {/* DISCARD CHANGES */}
-
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<DeleteOutlineOutlinedIcon />}
-            onClick={() => setDiscardOpen(true)}
-            sx={{
-              flex: 1,
-              color: "text.secondary",
+              mt: 1,
+              pt: 1.5,
+              width: { xs: "100%", sm: "fit-content" },
+              maxWidth: "100%",
+              position: "sticky",
+              bottom: 16,
+              zIndex: 2,
+              p: { xs: 1.25, sm: 1 },
+              borderRadius: "12px",
+              border: 1,
               borderColor: "divider",
+              bgcolor: "background.paper",
+              boxShadow: (theme) => theme.palette.mode === "light"
+                ? "0 10px 30px rgba(15, 23, 42, 0.16)"
+                : "0 10px 30px rgba(0, 0, 0, 0.42)",
 
-              "&:hover": {
-                borderColor: "text.secondary",
-                bgcolor: "action.hover",
+              "& .MuiButton-root": {
+                minHeight: 36,
+                minWidth: 0,
+                fontFamily: "Inter, sans-serif",
+                fontSize: "10px",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                padding: "8px 14px",
+                borderRadius: 1.5,
               },
             }}
           >
-            DISCARD CHANGES
-          </Button>
+            {/* CONVERT TO OPPORTUNITY */}
 
-          {/* SUBMIT TRANSACTION */}
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<SwapHorizOutlinedIcon />}
+              // IMPORTANT: Keep this button enabled so clicking it can reveal
+              // the existing LeadForm validation errors for incomplete leads.
+              onClick={handleConvertToOpportunity}
+              sx={{
+                minWidth: { xs: "100%", sm: 170 },
+                bgcolor: "#e8f9f3",
+                color: "#0aae83",
+                borderColor: "#b9eadc",
 
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={<SaveOutlinedIcon />}
-            disabled={submitting}
-            sx={{
-              flex: 1,
-            }}
-          >
-            SUBMIT TRANSACTION
-          </Button>
+                "&:hover": {
+                  bgcolor: "#d9f5ec",
+                  borderColor: "#0aae83",
+                },
+              }}
+            >
+              CONVERT TO OPPORTUNITY
+            </Button>
 
-          {/* CLOSE */}
+            {/* DISCARD CHANGES */}
 
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<CloseOutlinedIcon />}
-            onClick={onClose}
-            sx={{
-              flex: 1,
-              color: "text.secondary",
-              borderColor: "divider",
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<DeleteOutlineOutlinedIcon />}
+              onClick={() => setDiscardOpen(true)}
+              sx={{
+                minWidth: { xs: "100%", sm: 150 },
+                color: "text.secondary",
+                borderColor: "divider",
 
-              "&:hover": {
-                borderColor: "text.secondary",
-                bgcolor: "action.hover",
-              },
-            }}
-          >
-            CLOSE
-          </Button>
-        </Stack>
+                "&:hover": {
+                  borderColor: "text.secondary",
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
+              DISCARD CHANGES
+            </Button>
+
+            {/* SUBMIT TRANSACTION */}
+
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<SaveOutlinedIcon />}
+              disabled={submitting}
+              sx={{
+                minWidth: { xs: "100%", sm: 170 },
+              }}
+            >
+              SUBMIT TRANSACTION
+            </Button>
+
+            {/* CLOSE */}
+
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<CloseOutlinedIcon />}
+              onClick={onClose}
+              sx={{
+                minWidth: { xs: "100%", sm: 120 },
+                color: "text.secondary",
+                borderColor: "divider",
+
+                "&:hover": {
+                  borderColor: "text.secondary",
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
+              CLOSE
+            </Button>
+          </Stack>
+        </Box>
       </Stack>
 
       {/* ================================================================
