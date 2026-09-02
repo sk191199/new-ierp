@@ -3,10 +3,25 @@ export const leadSourceOptions = ["Website", "Referral", "LinkedIn", "Campaign",
   label: value,
 }));
 
-export const leadStatusOptions = ["New", "Contacted", "Qualified", "Disqualified"].map((value) => ({
+export const leadStatusOptions = ["New", "Qualified", "Disqualified", "Converted"].map((value) => ({
   value,
   label: value,
 }));
+
+// Mapping of lead status to MUI Chip color tone
+// NEW → neutral (default), QUALIFIED → success (green), DISQUALIFIED → error (red), CONVERTED → primary (blue/purple)
+// Unknown statuses default to neutral
+export const statusToneMap: Record<string, "default" | "primary" | "success" | "error" | "warning" | "info"> = {
+  "New": "default",
+  "Qualified": "success",
+  "Disqualified": "error",
+  "Converted": "primary",
+};
+
+// Helper function to get the tone for a status, with fallback to default
+export const getStatusTone = (status: string): "default" | "primary" | "success" | "error" | "warning" | "info" => {
+  return statusToneMap[status] ?? "default";
+};
 
 export const leadAssigneeOptions = ["Priya Sharma", "Liam Walker", "Arjun Rao"].map((value) => ({
   value,

@@ -20,7 +20,6 @@ import {
   Card,
   CardContent,
   Chip,
-  LinearProgress,
   Stack,
   Typography,
 } from "@mui/material";
@@ -75,7 +74,6 @@ export const LeadViewPage = () => {
   }
 
   const currentStage = stageIndexFor(lead.status);
-  const score = lead.leadScoreAvailable === false ? undefined : lead.leadScore;
 
   return (
     <Stack gap={{ xs: 2, md: 2.5 }}>
@@ -123,15 +121,12 @@ export const LeadViewPage = () => {
         </Stack>
         <Stack gap={{ xs: 2, md: 2.5 }}>
           <DetailCard tone="primary" title="Qualification" icon={<TrendingUpRoundedIcon />}>
-            <Stack gap={2.25}>
-              <ScorePanel score={score} />
-              <DetailGrid singleColumn>
+            <DetailGrid singleColumn>
                 <DetailField label="Lead Source" value={lead.leadSource} />
                 <DetailField label="Assigned To" value={lead.assignedTo} icon={<AssignmentIndOutlinedIcon />} />
                 <DetailField label="Industry" value={lead.industry} />
                 <DetailField label="Subsidiary" value={lead.subsidiary} />
               </DetailGrid>
-            </Stack>
           </DetailCard>
           <DetailCard tone="secondary" title="Additional Information" icon={<NotesOutlinedIcon />}>
             <DetailGrid singleColumn>
@@ -207,7 +202,6 @@ const ProfileHero = ({ lead, onBack, onEdit }: { lead: Lead; onBack: () => void;
           gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
         }}
       >
-        <HeroMetric label="Lead Score" value={lead.leadScoreAvailable === false ? "—" : String(lead.leadScore)} />
         <HeroMetric label="Assigned To" value={lead.assignedTo} />
         <HeroMetric label="Created" value={formatDate(lead.createdDate)} />
       </Box>
@@ -327,27 +321,6 @@ const DetailField = ({ label, value, icon, wide, multiline }: { label: string; v
       {value === null || value === undefined || value === "" ? "—" : value}
     </Typography>
   </Stack>
-);
-
-const ScorePanel = ({ score }: { score?: number }) => (
-  <Box
-    sx={(theme) => ({
-      p: 2,
-      borderRadius: 2,
-      border: 1,
-      borderColor: alpha(theme.palette.primary.main, 0.28),
-      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.16)} 0%, ${alpha(theme.palette.info.main, 0.07)} 100%)`,
-    })}
-  >
-    <Stack direction="row" justifyContent="space-between" alignItems="flex-end" gap={2}>
-      <Stack gap={0.5}>
-        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.1em" }}>LEAD SCORE</Typography>
-        <Typography variant="h2" sx={{ color: score === undefined ? "text.disabled" : "primary.main" }}>{score === undefined ? "—" : score}</Typography>
-      </Stack>
-      <TrendingUpRoundedIcon color={score === undefined ? "disabled" : "primary"} sx={{ fontSize: 34 }} />
-    </Stack>
-    <LinearProgress variant="determinate" value={score === undefined ? 0 : Math.min(100, Math.max(0, score))} sx={{ mt: 1.5, height: 6, borderRadius: 99 }} />
-  </Box>
 );
 
 const ActivityTimeline = ({ followUps }: { followUps: LeadFollowUp[] }) => (

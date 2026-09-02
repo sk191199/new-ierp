@@ -28,12 +28,12 @@ export const API_ENDPOINTS = {
     followups: (leadId: string) => `/api/v1/crm/leads/${leadId}/followups`,
     timeline: (leadId: string) => `/api/v1/crm/leads/${leadId}/timeline`,
   },
-  followUps: (id: string) => `/api/crm/followups/${id}`,
+  followUps: (id: string) => `/api/v1/crm/followups/${id}`,
   opportunities: {
     list: "/api/v1/crm/opportunities",
-    byId: (id: string) => `/api/crm/opportunities/${id}`,
-    convertToSalesEnquiry: (id: string) => `/api/crm/opportunities/${id}/convert-to-sales-enquiry`,
-    convertLead: (leadId: string) => `/api/crm/leads/${leadId}/convert-to-opportunity`,
+    byId: (id: string) => `/api/v1/crm/opportunities/${id}`,
+    convertToSalesEnquiry: (id: string) => `/api/v1/crm/opportunities/${id}/convert-to-sales-enquiry`,
+    convertLead: (leadId: string) => `/api/v1/crm/leads/${leadId}/convert-to-opportunity`,
   },
   dashboard: {
     snapshot: "/api/v1/dashboard/snapshot",

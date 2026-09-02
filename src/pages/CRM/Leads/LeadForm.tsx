@@ -196,6 +196,8 @@ export const LeadForm = ({
   // FORM VALIDATION
   // ============================================================
 
+  const alreadyConverted = value.status === "Converted";
+
   const errors = useMemo(() => {
     const next: Partial<Record<keyof LeadDraft, string>> = {};
 
@@ -350,8 +352,9 @@ export const LeadForm = ({
    * incomplete lead from being converted without duplicating validation rules.
    */
   const handleConvertToOpportunity = () => {
-    // Prevent opening another conversion flow while a submission is in progress.
-    if (submitting) {
+    // Prevent opening another conversion flow while a submission is in progress
+    // or when the backend already indicates this lead has been converted.
+    if (submitting || alreadyConverted) {
       return;
     }
 
@@ -387,7 +390,7 @@ export const LeadForm = ({
   };
 
   const submitOpportunityConversion = async (data: OpportunityFormData) => {
-    if (!onConvertToOpportunity) {
+    if (!onConvertToOpportunity || alreadyConverted) {
       setConversionOpen(false);
       return;
     }
@@ -932,18 +935,19 @@ export const LeadForm = ({
             type="button"
             variant="outlined"
             startIcon={<SwapHorizOutlinedIcon />}
-            // IMPORTANT: Keep this button enabled so clicking it can reveal
-            // the existing LeadForm validation errors for incomplete leads.
+            disabled={submitting || alreadyConverted}
+            title={alreadyConverted ? "Already converted to opportunity" : undefined}
             onClick={handleConvertToOpportunity}
             sx={{
               flex: 1,
-              bgcolor: "#e8f9f3",
-              color: "#0aae83",
-              borderColor: "#b9eadc",
+              bgcolor: alreadyConverted ? "action.disabledBackground" : "#e8f9f3",
+              color: alreadyConverted ? "text.disabled" : "#0aae83",
+              borderColor: alreadyConverted ? "divider" : "#b9eadc",
+              cursor: alreadyConverted ? "not-allowed" : "pointer",
 
               "&:hover": {
-                bgcolor: "#d9f5ec",
-                borderColor: "#0aae83",
+                bgcolor: alreadyConverted ? "action.disabledBackground" : "#d9f5ec",
+                borderColor: alreadyConverted ? "divider" : "#0aae83",
               },
             }}
           >

@@ -10,9 +10,9 @@ export const DOCUMENT_STATUSES = {
 
 export const LEAD_STATUSES = {
   new: "New",
-  contacted: "Contacted",
   qualified: "Qualified",
   disqualified: "Disqualified",
+  converted: "Converted",
 } as const;
 
 export const PAYMENT_STATUSES = {

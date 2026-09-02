@@ -11,6 +11,7 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Box,
   Button,
+  Chip,
   IconButton,
   LinearProgress,
   Stack,
@@ -32,7 +33,7 @@ import { SelectField } from "@/components/forms/fields";
 import { DataTable } from "@/components/tables/DataTable/DataTable";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROUTES } from "@/constants/routes";
-import { LEAD_STATUSES, type LeadStatus } from "@/constants/statuses";
+import { type LeadStatus } from "@/constants/statuses";
 import { useTableState } from "@/hooks/useTableState";
 import type { Lead } from "@/models/lead/lead";
 import {
@@ -46,7 +47,7 @@ import { useAppDispatch } from "@/redux/hooks";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
 import { isBlank, isValidEmail } from "@/utils/validators/required";
 import { InlineSelectField, InlineTextField } from "./InlineLeadField";
-import { leadSourceOptions, leadStatusOptions } from "./leadOptions";
+import { getStatusTone, leadSourceOptions, leadStatusOptions } from "./leadOptions";
 import {
   deleteLead,
   getAllMockLeads,
@@ -161,7 +162,7 @@ export const LeadsPage = () => {
         [key]: value,
       };
 
-      if (key === "leadScore" || key === "status") {
+      if (key === "status") {
         next.confidence = resolveLeadConfidence(
           Number(next.leadScore),
           next.status,
@@ -330,26 +331,18 @@ export const LeadsPage = () => {
               options={leadStatusOptions}
             />
           ) : (
-            String(getValue())
-          ),
-      },
-      {
-        accessorKey: "leadScore",
-        header: "Lead Score",
-        size: 78,
-        minSize: 68,
-        cell: ({ row, getValue }) =>
-          editingId === row.original.id && draft ? (
-            <InlineTextField
-              ariaLabel="Lead score"
-              type="number"
-              value={String(draft.leadScore)}
-              onChange={(value) =>
-                patchDraft("leadScore", Number(value) || 0)
-              }
+            <Chip
+              label={String(getValue())}
+              color={getStatusTone(String(getValue())) as any}
+              variant="outlined"
+              size="small"
+              sx={{
+                fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                fontSize: "14px",
+                lineHeight: "22px",
+                letterSpacing: "normal",
+              }}
             />
-          ) : (
-            String(getValue())
           ),
       },
       {
@@ -606,12 +599,22 @@ export const LeadsPage = () => {
                   value: "",
                   label: "All statuses",
                 },
-                ...Object.values(LEAD_STATUSES).map(
-                  (value) => ({
-                    value,
-                    label: value,
-                  }),
-                ),
+                {
+                  value: "New",
+                  label: "New",
+                },
+                {
+                  value: "Qualified",
+                  label: "Qualified",
+                },
+                {
+                  value: "Disqualified",
+                  label: "Disqualified",
+                },
+                {
+                  value: "Converted",
+                  label: "Converted",
+                },
               ]}
             />
           </FilterPanel>
