@@ -371,6 +371,26 @@ export const SystemSettingsPage = () => {
   const addModule = async () => {
     const name = moduleName.trim();
     if (!name || catalog.modules.includes(name) || modulesLoading) return;
+
+    const duplicateModule = backendModules.some(
+      (module) =>
+        module.name.trim().toLowerCase() === name.toLowerCase() ||
+        settingsSlug(module.name).toLowerCase() === settingsSlug(name).toLowerCase() ||
+        module.code.trim().toLowerCase() === settingsSlug(name).toLowerCase(),
+    );
+
+    if (duplicateModule) {
+      dispatch(
+        toastShown({
+          message: `Module "${name}" already exists.`,
+          severity: "warning",
+        }),
+      );
+      setModuleName("");
+      setModuleDialogOpen(false);
+      return;
+    }
+
     try {
       await createSettingsModule({ name });
       setModuleName("");
@@ -393,6 +413,25 @@ export const SystemSettingsPage = () => {
     const module = backendModules.find((item) => item.name === activeModule);
     if (!name || !module || (screensByModule[activeModule] ?? []).includes(name) || modulesLoading)
       return;
+
+    const duplicateScreen = module.screens.some(
+      (screen) =>
+        screen.name.trim().toLowerCase() === name.toLowerCase() ||
+        settingsSlug(screen.name).toLowerCase() === settingsSlug(name).toLowerCase(),
+    );
+
+    if (duplicateScreen) {
+      dispatch(
+        toastShown({
+          message: `Screen "${name}" already exists in ${module.name}.`,
+          severity: "warning",
+        }),
+      );
+      setScreenName("");
+      setScreenDialogOpen(false);
+      return;
+    }
+
     try {
       if (module.source === "dynamic") {
         await createDynamicModuleEntity(module.id, {

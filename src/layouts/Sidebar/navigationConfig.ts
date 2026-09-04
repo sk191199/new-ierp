@@ -69,6 +69,22 @@ export const navigationItems = (): NavigationItem[] => primaryNavigationItems;
 
 export const systemSettingsNavigationItems = (): NavigationItem[] => [systemSettingsNavigationItem];
 
+const salesNavigationItem: NavigationItem = {
+  label: "Sales",
+  icon: ShoppingCartOutlinedIcon,
+  children: [
+    { label: "Sales Enquiry", path: ROUTES.sales.enquiries },
+    { label: "Sales Quotation", path: ROUTES.sales.quotations },
+    { label: "Projects", path: ROUTES.sales.projects },
+    { label: "Sales Order", path: ROUTES.sales.orders },
+    { label: "Sales Invoices", path: ROUTES.sales.invoices },
+    { label: "Credit / Debit Notes", path: ROUTES.sales.creditDebitNotes },
+    { label: "Delivery Order", path: ROUTES.sales.deliveryOrders },
+  ],
+};
+
+export const salesNavigationItems = (): NavigationItem[] => [salesNavigationItem];
+
 export const navigationItemsFromModules = (modules: MetadataModule[]): NavigationItem[] =>
   modules.map((module) => ({
     label: module.name,

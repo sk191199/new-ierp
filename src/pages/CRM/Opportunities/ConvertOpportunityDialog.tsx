@@ -19,7 +19,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-const OPPORTUNITY_STAGES = [
+export const OPPORTUNITY_STAGES = [
   { value: "new", label: "New", probability: "" },
   { value: "qualification", label: "Qualification", probability: "10" },
   { value: "proposal", label: "Proposal", probability: "50" },
@@ -29,9 +29,13 @@ const OPPORTUNITY_STAGES = [
 ];
 
 export interface OpportunityFormData {
+  opportunityName?: string;
   opportunityValue: string;
+  currencyCode?: string;
   stage: string;
   probability: string;
+  ownerUserId?: string;
+  notes?: string;
   competitors: string;
   nextSteps: string;
   closeReason: string;

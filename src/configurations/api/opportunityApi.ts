@@ -1,12 +1,19 @@
 import type { OpportunityFormData } from "@/pages/CRM/Opportunities/ConvertOpportunityDialog";
 import type { ApiPaginatedSuccess } from "@/models/common/api";
 import type { Opportunity } from "@/models/opportunity/opportunity";
+import type { LeadDraft } from "@/models/lead/lead";
 import { API_ENDPOINTS, http, unwrapData, USE_MOCK_OPPORTUNITIES } from "./api";
+import { getLead, updateLead } from "./leadsApi";
+import { mockLatency } from "./delay";
+
+let mockOpportunities: Opportunity[] = [];
 
 export interface OpportunityListParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
   stage?: string;
   status?: string;
   ownerUserId?: string;
@@ -33,10 +40,27 @@ export const listOpportunities = async (
   const pageSize = params.pageSize ?? 20;
 
   if (USE_MOCK_OPPORTUNITIES) {
+    const search = params.search?.trim().toLowerCase() ?? "";
+    const filtered = mockOpportunities.filter((opportunity) => {
+      const matchesSearch = !search || [opportunity.opportunityNumber, opportunity.name, opportunity.leadNumber]
+        .join(" ")
+        .toLowerCase()
+        .includes(search);
+      const matchesStage = !params.stage || opportunity.stage === params.stage;
+      const matchesStatus = !params.status || opportunity.status === params.status;
+      return matchesSearch && matchesStage && matchesStatus;
+    });
+    const sorted = [...filtered].sort((left, right) => {
+      const key = params.sortBy as keyof Opportunity | undefined;
+      if (!key) return 0;
+      const result = String(left[key] ?? "").localeCompare(String(right[key] ?? ""), undefined, { numeric: true });
+      return params.sortDir === "desc" ? -result : result;
+    });
+    const start = (page - 1) * pageSize;
     return {
       success: true,
-      data: [],
-      pagination: { page, pageSize, total: 0, totalPages: 0 },
+      data: sorted.slice(start, start + pageSize),
+      pagination: { page, pageSize, total: sorted.length, totalPages: Math.max(1, Math.ceil(sorted.length / pageSize)) },
     };
   }
 
@@ -71,6 +95,64 @@ export const convertLeadToOpportunity = async (
   data: OpportunityFormData,
 ): Promise<unknown> => {
   if (USE_MOCK_OPPORTUNITIES) {
+    await mockLatency();
+    const lead = await getLead(leadId);
+    const opportunityNumber = `OP-${String(1000 + mockOpportunities.length + 1).padStart(6, "0")}`;
+    const convertedLead: LeadDraft = {
+      companyName: lead.companyName,
+      contactPerson: lead.leadName,
+      phone: lead.phone,
+      email: lead.email,
+      industry: lead.industry ?? "",
+      projectType: lead.projectType ?? "",
+      leadSource: lead.leadSource,
+      status: "Converted",
+      assignedTo: lead.assignedTo,
+      assignedToUserId: lead.assignedToUserId,
+      website: lead.website ?? "",
+      companySize: lead.companySize ?? "",
+      annualRevenue: lead.annualRevenue ?? "",
+      address: lead.address ?? "",
+      subsidiary: lead.subsidiary ?? "",
+      subsidiaryId: lead.subsidiaryId,
+      projectDescription: lead.projectDescription ?? "",
+      notes: lead.notes ?? "",
+      followUpDate: "",
+      newFollowUpDate: "",
+      followUpType: "",
+      followUpStatus: "",
+      followUpNotes: "",
+      followUpFile: null,
+    };
+    await updateLead(lead.id, convertedLead);
+    mockOpportunities = [
+      {
+        id: `op-${Date.now()}`,
+        opportunityNumber,
+        name: data.opportunityName || lead.companyName,
+        leadId: lead.id,
+        leadNumber: lead.leadId,
+        subsidiaryId: lead.subsidiaryId ?? null,
+        customerId: null,
+        stage: data.stage,
+        opportunityValue: Number(data.opportunityValue),
+        currencyCode: data.currencyCode || "USD",
+        expectedCloseDate: data.expectedCloseDate,
+        ownerUserId: data.ownerUserId || lead.assignedToUserId || lead.assignedTo || null,
+        status: "New",
+        probability: Number(data.probability) || 0,
+        computations: null,
+        notes: data.notes || data.nextSteps || null,
+        closedReason: data.closeReason || null,
+        createdAt: new Date().toISOString(),
+        createdBy: "Current User",
+        updatedAt: null,
+        updatedBy: null,
+        version: 1,
+        followUps: [],
+      },
+      ...mockOpportunities,
+    ];
     return data;
   }
 
@@ -80,7 +162,10 @@ export const convertLeadToOpportunity = async (
 
 export const getOpportunityById = async (id: string): Promise<Opportunity> => {
   if (USE_MOCK_OPPORTUNITIES) {
-    throw new Error("Opportunity details are unavailable in mock mode.");
+    await mockLatency();
+    const opportunity = mockOpportunities.find((item) => item.id === id);
+    if (!opportunity) throw new Error("Opportunity was not found.");
+    return opportunity;
   }
 
   const response = await http.get(API_ENDPOINTS.opportunities.byId(id));
@@ -89,6 +174,7 @@ export const getOpportunityById = async (id: string): Promise<Opportunity> => {
 
 export const deleteOpportunity = async (id: string): Promise<void> => {
   if (USE_MOCK_OPPORTUNITIES) {
+    mockOpportunities = mockOpportunities.filter((opportunity) => opportunity.id !== id);
     return;
   }
 
@@ -105,7 +191,11 @@ export const updateOpportunity = async (
   data: OpportunityUpdate,
 ): Promise<Opportunity> => {
   if (USE_MOCK_OPPORTUNITIES) {
-    throw new Error("Opportunity editing is unavailable in mock mode.");
+    const index = mockOpportunities.findIndex((opportunity) => opportunity.id === id);
+    if (index < 0) throw new Error("Opportunity was not found.");
+    const updated = { ...mockOpportunities[index], ...data, updatedAt: new Date().toISOString(), version: mockOpportunities[index].version + 1 };
+    mockOpportunities = mockOpportunities.map((opportunity, opportunityIndex) => opportunityIndex === index ? updated : opportunity);
+    return updated;
   }
 
   const response = await http.put(API_ENDPOINTS.opportunities.byId(id), data);

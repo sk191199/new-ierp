@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { getAllModules } from "@/configurations/api/modulesApi";
 import { MODULES_UPDATED_EVENT } from "@/configurations/api/modulesApi";
 import { useAuth } from "@/hooks/useAuth";
-import { navigationItems, navigationItemsFromModules, systemSettingsNavigationItems } from "./navigationConfig";
+import {
+  navigationItems,
+  navigationItemsFromModules,
+  salesNavigationItems,
+  systemSettingsNavigationItems,
+} from "./navigationConfig";
 import { SidebarItem } from "./SidebarItem";
 
 interface SidebarProps {
@@ -23,7 +28,15 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
     const loadModules = () => getAllModules()
       .then((modules) => {
         if (active) {
-          setItems([...navigationItems(), ...navigationItemsFromModules(modules), ...systemSettingsNavigationItems()]);
+          const dynamicItems = navigationItemsFromModules(modules).filter(
+            (item) => item.label.toLowerCase() !== "sales",
+          );
+          setItems([
+            ...navigationItems(),
+            ...dynamicItems,
+            ...salesNavigationItems(),
+            ...systemSettingsNavigationItems(),
+          ]);
         }
       })
       .catch((error: unknown) => {

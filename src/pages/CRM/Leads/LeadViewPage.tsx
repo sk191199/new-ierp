@@ -1,9 +1,12 @@
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import AssignmentIndOutlinedIcon from "@mui/icons-material/AssignmentIndOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
+import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
@@ -25,15 +28,21 @@ import {
 } from "@mui/material";
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import SwapHorizOutlinedIcon from "@mui/icons-material/SwapHorizOutlined";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState/LoadingState";
 import { StatusChip } from "@/components/common/StatusChip/StatusChip";
 import { ROUTES } from "@/constants/routes";
-import type { Lead, LeadFollowUp } from "@/models/lead/lead";
+import type { Lead, LeadDraft, LeadFollowUp } from "@/models/lead/lead";
 import { formatCompactNumber, formatDate } from "@/utils/formatters";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
-import { getLead } from "@/configurations/api/leadsApi";
+import { deleteLead, getLead, updateLead } from "@/configurations/api/leadsApi";
+import ConvertOpportunityDialog, { type OpportunityFormData } from "../Opportunities/ConvertOpportunityDialog";
+import { convertLeadToOpportunity } from "@/configurations/api/opportunityApi";
+import { toastShown } from "@/redux/features/ui/uiSlice";
+import { useAppDispatch } from "@/redux/hooks";
 
 const stages = ["Lead Capture", "Contact", "Opportunity", "Follow-Up", "Quotation"] as const;
 
@@ -49,9 +58,15 @@ const cardContentSx = { p: { xs: 2, md: 2.5 }, "&:last-child": { pb: { xs: 2, md
 export const LeadViewPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [lead, setLead] = useState<Lead | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [disqualifying, setDisqualifying] = useState(false);
+  const [conversionOpen, setConversionOpen] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -75,12 +90,60 @@ export const LeadViewPage = () => {
 
   const currentStage = stageIndexFor(lead.status);
 
+  const handleDelete = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      await deleteLead(id);
+      dispatch(toastShown({ message: `${lead.leadId} deleted.`, severity: "success" }));
+      navigate(ROUTES.crm.leads);
+    } catch (cause) {
+      dispatch(toastShown({ message: getErrorMessage(cause), severity: "error" }));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDisqualify = async () => {
+    if (!id || lead.status === "Disqualified") return;
+    setDisqualifying(true);
+    try {
+      const updated = await updateLead(id, toLeadDraft(lead, "Disqualified"));
+      setLead(updated);
+      dispatch(toastShown({ message: `${lead.leadId} marked as disqualified.`, severity: "success" }));
+    } catch (cause) {
+      dispatch(toastShown({ message: getErrorMessage(cause), severity: "error" }));
+    } finally {
+      setDisqualifying(false);
+    }
+  };
+
+  const handleConvert = async (data: OpportunityFormData) => {
+    if (!id || lead.status === "Converted") return;
+    setConverting(true);
+    try {
+      await convertLeadToOpportunity(id, data);
+      dispatch(toastShown({ message: "Lead converted to opportunity.", severity: "success" }));
+      setConversionOpen(false);
+      navigate(ROUTES.crm.opportunities);
+    } catch (cause) {
+      dispatch(toastShown({ message: getErrorMessage(cause), severity: "error" }));
+    } finally {
+      setConverting(false);
+    }
+  };
+
   return (
     <Stack gap={{ xs: 2, md: 2.5 }}>
       <ProfileHero
         lead={lead}
         onBack={() => navigate(ROUTES.crm.leads)}
         onEdit={() => navigate(ROUTES.crm.leadEdit(lead.id))}
+        onDelete={() => setDeleteOpen(true)}
+        onDisqualify={() => void handleDisqualify()}
+        onConvert={() => setConversionOpen(true)}
+        disqualifying={disqualifying}
+        converting={converting}
       />
       <Pipeline currentStage={currentStage} />
       <Box
@@ -139,11 +202,73 @@ export const LeadViewPage = () => {
           </DetailCard>
         </Stack>
       </Box>
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Delete lead"
+        description={`Delete ${lead.leadId} (${lead.companyName})? This action cannot be undone.`}
+        confirmLabel="Delete"
+        tone="error"
+        loading={deleting}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => void handleDelete()}
+      />
+      <ConvertOpportunityDialog
+        open={conversionOpen}
+        companyName={lead.companyName}
+        submitting={converting}
+        onClose={() => setConversionOpen(false)}
+        onConvert={(data) => void handleConvert(data)}
+      />
     </Stack>
   );
 };
 
-const ProfileHero = ({ lead, onBack, onEdit }: { lead: Lead; onBack: () => void; onEdit: () => void }) => (
+const toLeadDraft = (lead: Lead, status: Lead["status"]): LeadDraft => ({
+  companyName: lead.companyName,
+  contactPerson: lead.leadName,
+  phone: lead.phone,
+  email: lead.email,
+  industry: lead.industry ?? "",
+  projectType: lead.projectType ?? "",
+  leadSource: lead.leadSource,
+  status,
+  assignedTo: lead.assignedTo,
+  assignedToUserId: lead.assignedToUserId,
+  website: lead.website ?? "",
+  companySize: lead.companySize ?? "",
+  annualRevenue: lead.annualRevenue ?? "",
+  address: lead.address ?? "",
+  subsidiary: lead.subsidiary ?? "",
+  subsidiaryId: lead.subsidiaryId,
+  projectDescription: lead.projectDescription ?? "",
+  notes: lead.notes ?? "",
+  followUpDate: "",
+  newFollowUpDate: "",
+  followUpType: "",
+  followUpStatus: "",
+  followUpNotes: "",
+  followUpFile: null,
+});
+
+const ProfileHero = ({
+  lead,
+  onBack,
+  onEdit,
+  onDelete,
+  onDisqualify,
+  onConvert,
+  disqualifying,
+  converting,
+}: {
+  lead: Lead;
+  onBack: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDisqualify: () => void;
+  onConvert: () => void;
+  disqualifying: boolean;
+  converting: boolean;
+}) => (
   <Card
     sx={{
       borderRadius: 3,
@@ -152,8 +277,8 @@ const ProfileHero = ({ lead, onBack, onEdit }: { lead: Lead; onBack: () => void;
     }}
   >
     <CardContent sx={{ p: { xs: 2.5, md: 3.5 }, "&:last-child": { pb: { xs: 2.5, md: 3.5 } } }}>
-      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={3}>
-        <Stack direction={{ xs: "column", sm: "row" }} gap={2} alignItems={{ xs: "flex-start", sm: "center" }}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={{ xs: 2, md: 2.5 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} gap={2} alignItems={{ xs: "flex-start", sm: "center" }} sx={{ minWidth: 0, flex: 1 }}>
           <Box
             sx={{
               width: 64,
@@ -169,11 +294,20 @@ const ProfileHero = ({ lead, onBack, onEdit }: { lead: Lead; onBack: () => void;
           >
             <BusinessOutlinedIcon sx={{ fontSize: 32 }} />
           </Box>
-          <Stack gap={0.75}>
+          <Stack gap={0.75} sx={{ minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.14em" }}>
               CRM / LEADS / LEAD DETAILS
             </Typography>
-            <Typography variant="h1" sx={{ fontSize: { xs: "1.65rem", md: "2.15rem" }, letterSpacing: "-0.02em" }}>
+            <Typography
+              variant="h1"
+              sx={{
+                minWidth: 0,
+                fontSize: { xs: "1.35rem", sm: "1.55rem", md: "1.8rem", lg: "2rem" },
+                lineHeight: 1.08,
+                letterSpacing: "-0.02em",
+                overflowWrap: "anywhere",
+              }}
+            >
                 {lead.companyName}
             </Typography>
             <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
@@ -186,9 +320,54 @@ const ProfileHero = ({ lead, onBack, onEdit }: { lead: Lead; onBack: () => void;
             </Stack>
           </Stack>
         </Stack>
-        <Stack direction={{ xs: "row", md: "column" }} gap={1} alignItems={{ xs: "stretch", md: "flex-end" }}>
-          <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={onBack}>BACK TO LEADS</Button>
-          <Button variant="contained" onClick={onEdit}>EDIT LEAD</Button>
+        <Stack gap={1} alignItems={{ xs: "stretch", md: "flex-end" }} sx={{ minWidth: 0, flexShrink: 0 }}>
+          <Button variant="outlined" startIcon={<ArrowBackRoundedIcon />} onClick={onBack} sx={{ alignSelf: { xs: "stretch", md: "flex-end" }, whiteSpace: "nowrap" }}>BACK TO LEADS</Button>
+          <Stack
+            direction="row"
+            gap={0.75}
+            justifyContent="flex-end"
+            sx={{
+              minWidth: 0,
+              maxWidth: "100%",
+              overflowX: "auto",
+              pb: 0.25,
+              scrollbarWidth: "thin",
+              "& > .MuiButton-root": { flexShrink: 0 },
+            }}
+          >
+            <Button
+              variant="outlined"
+              color="error"
+              aria-label="Delete lead"
+              onClick={onDelete}
+              sx={{ minWidth: 40, width: 40, px: 0 }}
+            >
+              <DeleteOutlineIcon fontSize="small" />
+            </Button>
+            <Button variant="outlined" color="primary" aria-label="Edit lead" onClick={onEdit} sx={{ minWidth: 40, width: 40, px: 0 }}>
+              <EditOutlinedIcon fontSize="small" />
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<BlockOutlinedIcon />}
+              onClick={onDisqualify}
+              disabled={disqualifying || lead.status === "Disqualified" || lead.status === "Converted"}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              {disqualifying ? "DISQUALIFYING..." : "DISQUALIFY LEAD"}
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<SwapHorizOutlinedIcon />}
+              onClick={onConvert}
+              disabled={converting || lead.status === "Converted" || lead.status === "Disqualified"}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              CONVERT TO OPPORTUNITY
+            </Button>
+          </Stack>
         </Stack>
       </Stack>
       <Box

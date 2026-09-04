@@ -141,8 +141,8 @@ export const FormSection = ({
 
         "&.Mui-expanded": {
           margin: 0,
-          borderColor: "primary.main",
-          boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}1A`,
+          borderColor: "divider",
+          boxShadow: "none",
         },
       }}
     >
