@@ -21,7 +21,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import {
   CreatableSelectField,
@@ -76,6 +76,8 @@ interface LeadFormProps {
   onSubmit: () => void;
   onClose?: () => void;
   onReset?: () => void;
+  extraContent?: ReactNode;
+  hideConvertToOpportunity?: boolean;
 }
 
 export const LeadForm = ({
@@ -90,6 +92,8 @@ export const LeadForm = ({
   onSubmit,
   onClose,
   onReset,
+  extraContent,
+  hideConvertToOpportunity = false,
 }: LeadFormProps) => {
   const [attempted, setAttempted] = useState(false);
   const [showNewFollowUp, setShowNewFollowUp] = useState(mode === "create");
@@ -692,6 +696,8 @@ export const LeadForm = ({
 
         {renderUnmappedCustomSections()}
 
+        {extraContent}
+
         {/* ============================================================
             FOLLOW-UPS
             ============================================================ */}
@@ -931,28 +937,30 @@ export const LeadForm = ({
         >
           {/* CONVERT TO OPPORTUNITY */}
 
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<SwapHorizOutlinedIcon />}
-            disabled={submitting || alreadyConverted}
-            title={alreadyConverted ? "Already converted to opportunity" : undefined}
-            onClick={handleConvertToOpportunity}
-            sx={{
-              flex: 1,
-              bgcolor: alreadyConverted ? "action.disabledBackground" : "#e8f9f3",
-              color: alreadyConverted ? "text.disabled" : "#0aae83",
-              borderColor: alreadyConverted ? "divider" : "#b9eadc",
-              cursor: alreadyConverted ? "not-allowed" : "pointer",
+          {!hideConvertToOpportunity ? (
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<SwapHorizOutlinedIcon />}
+              disabled={submitting || alreadyConverted}
+              title={alreadyConverted ? "Already converted to opportunity" : undefined}
+              onClick={handleConvertToOpportunity}
+              sx={{
+                flex: 1,
+                bgcolor: alreadyConverted ? "action.disabledBackground" : "#e8f9f3",
+                color: alreadyConverted ? "text.disabled" : "#0aae83",
+                borderColor: alreadyConverted ? "divider" : "#b9eadc",
+                cursor: alreadyConverted ? "not-allowed" : "pointer",
 
-              "&:hover": {
-                bgcolor: alreadyConverted ? "action.disabledBackground" : "#d9f5ec",
-                borderColor: alreadyConverted ? "divider" : "#0aae83",
-              },
-            }}
-          >
-            CONVERT TO OPPORTUNITY
-          </Button>
+                "&:hover": {
+                  bgcolor: alreadyConverted ? "action.disabledBackground" : "#d9f5ec",
+                  borderColor: alreadyConverted ? "divider" : "#0aae83",
+                },
+              }}
+            >
+              CONVERT TO OPPORTUNITY
+            </Button>
+          ) : null}
 
           {/* DISCARD CHANGES */}
 
