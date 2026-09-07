@@ -1,8 +1,7 @@
 import { bindAuthSession } from "@/configurations/api/api";
 import { ROUTES } from "@/constants/routes";
-import { refreshSessionRequest } from "@/configurations/api/authApi";
+import { hasRefreshToken, refreshSessionRequest, saveRefreshToken } from "@/configurations/api/authApi";
 import {
-  accessTokenUpdated,
   sessionCleared,
   sessionEstablished,
   sessionFailed,
@@ -12,37 +11,58 @@ import { permissionsCleared, permissionsLoaded } from "@/redux/features/permissi
 import { tenantCleared, tenantLoaded } from "@/redux/features/tenant/tenantSlice";
 import { store } from "@/redux/store";
 
+let hydrationInFlight: Promise<void> | null = null;
+
 export const bindHttpAuth = (): void => {
   bindAuthSession({
     getAccessToken: () => store.getState().auth.accessToken,
-    setAccessToken: (token) => {
-      store.dispatch(accessTokenUpdated(token));
-    },
     clearSession: () => {
       store.dispatch(sessionCleared());
       store.dispatch(permissionsCleared());
       store.dispatch(tenantCleared());
+      saveRefreshToken();
     },
     onUnauthorized: () => {
       if (window.location.pathname !== ROUTES.login) {
         window.location.assign(ROUTES.login);
       }
     },
+    refreshAccessToken: async () => {
+      const result = await refreshSessionRequest();
+      store.dispatch(sessionEstablished({ user: result.user, accessToken: result.accessToken }));
+      store.dispatch(permissionsLoaded({ roles: result.roles, permissions: result.permissions }));
+      store.dispatch(tenantLoaded({ tenantId: result.user.tenantId, tenantName: result.user.tenantName }));
+      return result.accessToken;
+    },
   });
 };
 
 /**
- * Restore the session from the refresh cookie (or the mock session flag).
- * Access tokens stay in memory; refresh tokens never enter localStorage.
+ * Restore the session from the refresh cookie or session-stored refresh token.
+ * Access tokens stay in memory and never enter localStorage.
  */
-export const hydrateSession = async (): Promise<void> => {
-  store.dispatch(sessionHydrating());
-  try {
-    const result = await refreshSessionRequest();
-    store.dispatch(sessionEstablished({ user: result.user, accessToken: result.accessToken }));
-    store.dispatch(permissionsLoaded({ roles: result.roles, permissions: result.permissions }));
-    store.dispatch(tenantLoaded({ tenantId: result.user.tenantId, tenantName: "i-ERP HQ" }));
-  } catch {
-    store.dispatch(sessionFailed(null));
+export const hydrateSession = (): Promise<void> => {
+  if (!hydrationInFlight) {
+    hydrationInFlight = (async () => {
+      store.dispatch(sessionHydrating());
+      if (!hasRefreshToken()) {
+        store.dispatch(sessionFailed(null));
+        return;
+      }
+
+      try {
+        const result = await refreshSessionRequest();
+        store.dispatch(sessionEstablished({ user: result.user, accessToken: result.accessToken }));
+        store.dispatch(permissionsLoaded({ roles: result.roles, permissions: result.permissions }));
+        store.dispatch(tenantLoaded({ tenantId: result.user.tenantId, tenantName: result.user.tenantName }));
+      } catch {
+        saveRefreshToken();
+        store.dispatch(sessionFailed(null));
+      }
+    })().finally(() => {
+      hydrationInFlight = null;
+    });
   }
+
+  return hydrationInFlight;
 };

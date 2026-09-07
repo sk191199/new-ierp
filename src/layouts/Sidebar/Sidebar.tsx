@@ -4,7 +4,8 @@ import { alpha } from "@mui/material/styles";
 import { useEffect, useState } from "react";
 import { getAllModules } from "@/configurations/api/modulesApi";
 import { MODULES_UPDATED_EVENT } from "@/configurations/api/modulesApi";
-import { useAuth } from "@/hooks/useAuth";
+import { selectCurrentUser, selectIsAuthenticated } from "@/redux/features/auth/authSelectors";
+import { useAppSelector } from "@/redux/hooks";
 import {
   navigationItems,
   navigationItemsFromModules,
@@ -19,13 +20,19 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
-  const { user } = useAuth();
+  const user = useAppSelector(selectCurrentUser);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const [items, setItems] = useState(() => [...navigationItems(), ...systemSettingsNavigationItems()]);
 
   useEffect(() => {
     let active = true;
 
-    const loadModules = () => getAllModules()
+    const loadModules = () => {
+      if (!isAuthenticated) {
+        return;
+      }
+
+      void getAllModules()
       .then((modules) => {
         if (active) {
           const dynamicItems = navigationItemsFromModules(modules).filter(
@@ -42,6 +49,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
       .catch((error: unknown) => {
         console.error("Failed to load sidebar modules.", error);
       });
+    };
 
     void loadModules();
     window.addEventListener(MODULES_UPDATED_EVENT, loadModules);
@@ -50,7 +58,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
       active = false;
       window.removeEventListener(MODULES_UPDATED_EVENT, loadModules);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <Box
@@ -144,7 +152,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
               borderRadius: 1.5,
             }}
           >
-            {user?.initials ?? "AM"}
+            {user?.initials ?? ""}
           </Avatar>
           <Box
             sx={{
@@ -162,7 +170,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
             }}
           >
               <Typography variant="subtitle2" noWrap sx={{ color: "chrome.sidebarText", fontWeight: 800 }}>
-                {user?.displayName ?? "Aarav Mehta"}
+                {user?.displayName ?? ""}
               </Typography>
               <Stack direction="row" alignItems="center" gap={0.75}>
                 <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "success.main" }} />
@@ -171,7 +179,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
                   noWrap
                   sx={{ color: "success.main", letterSpacing: "0.1em", textTransform: "uppercase" }}
                 >
-                  {user?.roleName ?? "Global Admin"}
+                  {user?.roleName ?? ""}
                 </Typography>
               </Stack>
           </Box>

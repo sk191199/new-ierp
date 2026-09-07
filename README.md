@@ -15,11 +15,6 @@ npm install
 npm run dev
 ```
 
-Demo login (mock mode, default):
-
-- Email: `aarav.mehta@ierp.local`
-- Password: `Demo@Ierp2026`
-
 ## Scripts
 
 - `npm run dev` — local development
@@ -35,9 +30,13 @@ Copy `.env.example` to `.env`.
 | Variable | Purpose |
 | --- | --- |
 | `VITE_API_BASE_URL` | ASP.NET Core API origin |
-| `VITE_USE_MOCK` | `true` uses local mock data until the API is connected |
+| `VITE_USE_MOCK` | Set to `true` only for non-auth feature mock data |
+| `VITE_USE_DEV_HEADERS` | Keep `false` when using JWT authentication |
 
-Refresh tokens are expected as HttpOnly cookies. Access tokens stay in memory.
+Use `VITE_API_BASE_URL=https://i-erp-backend-production.up.railway.app`,
+`VITE_USE_MOCK=false`, and `VITE_USE_DEV_HEADERS=false` for the real backend.
+Access tokens stay in memory. Refresh tokens use an HttpOnly cookie when provided
+by the backend, or session storage when the backend returns a refresh token.
 
 ## What this foundation includes
 

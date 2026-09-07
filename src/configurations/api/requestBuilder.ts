@@ -1,37 +1,38 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { ERROR_CODES } from "@/constants/errorCodes";
 import { NormalizedApiError, type ApiErrorBody } from "@/models/common/api";
-import { API_BASE_URL, API_ENDPOINTS, DEV_TENANT_ID, DEV_USER_ID, USE_DEV_HEADERS } from "./config";
+import { API_BASE_URL, API_ENDPOINTS } from "./config";
 import { normalizeError } from "./errorNormalizer";
 
 type TokenReader = () => string | null;
-type TokenWriter = (token: string | null) => void;
 type SessionClearer = () => void;
+type TokenRefresher = () => Promise<string>;
 
 /**
  * Auth callbacks are bound after the Redux store exists. This avoids a
  * circular import between the Axios client and the store module.
  */
 let readAccessToken: TokenReader = () => null;
-let writeAccessToken: TokenWriter = () => undefined;
 let clearSession: SessionClearer = () => undefined;
 let onUnauthorized: () => void = () => undefined;
+let refreshToken: TokenRefresher = () => Promise.reject(new Error("Session refresh is unavailable."));
+let refreshFailureHandled = false;
 
 export const bindAuthSession = (bindings: {
   getAccessToken: TokenReader;
-  setAccessToken: TokenWriter;
   clearSession: SessionClearer;
   onUnauthorized: () => void;
+  refreshAccessToken: TokenRefresher;
 }): void => {
   readAccessToken = bindings.getAccessToken;
-  writeAccessToken = bindings.setAccessToken;
   clearSession = bindings.clearSession;
   onUnauthorized = bindings.onUnauthorized;
+  refreshToken = bindings.refreshAccessToken;
 };
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
-  // withCredentials: true,
+  // The backend returns the refresh token in the response body, not a cookie.
   withCredentials: false,
   timeout: 20_000,
   headers: {
@@ -39,22 +40,19 @@ export const http = axios.create({
   },
 });
 
-http.interceptors.request.use((config) => {
-  const token = readAccessToken();
-  // API contract: a request explicitly carrying the development identity headers must remain JWT-free.
-  const usesDevelopmentHeaders =
-    config.headers.has("X-Tenant-Id") || config.headers.has("X-User-Id");
+const isAuthRequest = (url?: string): boolean =>
+  Boolean(
+    url?.includes(API_ENDPOINTS.auth.login) || url?.includes(API_ENDPOINTS.auth.refresh),
+  );
 
-  if (USE_DEV_HEADERS || usesDevelopmentHeaders) {
-    // TEMPORARY DEVELOPMENT AUTH: Backend JWT issuing is not implemented yet.
-    // These headers replace Authorization until production JWT authentication is enabled.
-    if (USE_DEV_HEADERS) {
-      config.headers["X-Tenant-Id"] = DEV_TENANT_ID;
-      config.headers["X-User-Id"] = DEV_USER_ID;
-    }
-    // API contract: development calls must not include the mock access token.
+http.interceptors.request.use((config) => {
+  if (isAuthRequest(config.url)) {
     config.headers.delete("Authorization");
-  } else if (token) {
+    return config;
+  }
+
+  const token = readAccessToken();
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -63,9 +61,6 @@ http.interceptors.request.use((config) => {
 type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 let refreshInFlight: Promise<string> | null = null;
-
-const isRefreshRequest = (url?: string): boolean =>
-  Boolean(url?.includes(API_ENDPOINTS.auth.refresh));
 
 const isAuthFailure = (error: AxiosError<ApiErrorBody>): boolean => {
   const status = error.response?.status;
@@ -79,13 +74,8 @@ const isAuthFailure = (error: AxiosError<ApiErrorBody>): boolean => {
  */
 const refreshAccessToken = async (): Promise<string> => {
   if (!refreshInFlight) {
-    refreshInFlight = http
-      .post<{ success: boolean; data: { accessToken: string } }>(API_ENDPOINTS.auth.refresh)
-      .then((response) => {
-        const token = response.data.data.accessToken;
-        writeAccessToken(token);
-        return token;
-      })
+    refreshFailureHandled = false;
+    refreshInFlight = refreshToken()
       .finally(() => {
         refreshInFlight = null;
       });
@@ -94,21 +84,26 @@ const refreshAccessToken = async (): Promise<string> => {
   return refreshInFlight;
 };
 
+const handleRefreshFailure = (): void => {
+  if (refreshFailureHandled) {
+    return;
+  }
+
+  refreshFailureHandled = true;
+  clearSession();
+  onUnauthorized();
+};
+
 http.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiErrorBody>) => {
     const original = error.config as RetryableConfig | undefined;
-    // API contract: retries for development-header requests must not introduce an Authorization header.
-    const usesDevelopmentHeaders =
-      original?.headers.has("X-Tenant-Id") || original?.headers.has("X-User-Id");
 
     if (
       !original ||
-      USE_DEV_HEADERS ||
-      usesDevelopmentHeaders ||
       !isAuthFailure(error) ||
       original._retry ||
-      isRefreshRequest(original.url)
+      isAuthRequest(original.url)
     ) {
       return Promise.reject(normalizeError(error));
     }
@@ -120,8 +115,7 @@ http.interceptors.response.use(
       original.headers.Authorization = `Bearer ${token}`;
       return await http(original);
     } catch (refreshError) {
-      clearSession();
-      onUnauthorized();
+      handleRefreshFailure();
       return Promise.reject(normalizeError(refreshError));
     }
   },

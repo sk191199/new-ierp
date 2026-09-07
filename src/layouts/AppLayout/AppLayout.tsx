@@ -25,11 +25,14 @@ export const AppLayout = () => {
   const sidebarWidth = sidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   const signOut = async () => {
-    await logoutRequest();
-    dispatch(sessionCleared());
-    dispatch(permissionsCleared());
-    dispatch(tenantCleared());
-    navigate(ROUTES.login, { replace: true });
+    try {
+      await logoutRequest();
+    } finally {
+      dispatch(sessionCleared());
+      dispatch(permissionsCleared());
+      dispatch(tenantCleared());
+      navigate(ROUTES.login, { replace: true });
+    }
   };
 
   const sidebar = <Sidebar collapsed={isDesktop ? sidebarCollapsed : false} onSignOut={() => void signOut()} />;

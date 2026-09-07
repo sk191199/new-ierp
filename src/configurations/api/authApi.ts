@@ -1,81 +1,74 @@
-import { API_ENDPOINTS, USE_MOCK, http, unwrapData, mockLatency } from "./api";
-import { NormalizedApiError } from "@/models/common/api";
-import type { LoginRequest, LoginResponse } from "@/models/auth/auth";
-import { ERROR_CODES } from "@/constants/errorCodes";
-import { DEMO_LOGIN, demoLoginResponse } from "@/pages/Auth/auth.mock";
+import { API_ENDPOINTS, http, unwrapData } from "./api";
+import type { BackendLoginResponse, LoginRequest, LoginResponse } from "@/models/auth/auth";
 
-const MOCK_SESSION_KEY = "ierp.mock-session";
-const TEMPORARY_FRONTEND_LOGIN_FALLBACK = true;
+const REFRESH_TOKEN_KEY = "ierp.refresh-token";
 
-const matchesDemoLogin = (payload: LoginRequest): boolean =>
-  payload.email.trim().toLowerCase() === DEMO_LOGIN.email && payload.password === DEMO_LOGIN.password;
-
-export const persistMockSession = (active: boolean): void => {
-  if (active) {
-    sessionStorage.setItem(MOCK_SESSION_KEY, "1");
-    return;
+export const saveRefreshToken = (token?: string): void => {
+  if (token) {
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } else {
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   }
-  sessionStorage.removeItem(MOCK_SESSION_KEY);
 };
 
-export const hasMockSession = (): boolean => sessionStorage.getItem(MOCK_SESSION_KEY) === "1";
+const getRefreshToken = (): string | null => sessionStorage.getItem(REFRESH_TOKEN_KEY);
+
+export const hasRefreshToken = (): boolean => Boolean(getRefreshToken());
+
+const createInitials = (displayName: string): string =>
+  displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+const mapLoginResponse = (response: BackendLoginResponse): LoginResponse => {
+  const roles = response.roles ?? response.user.roles ?? [];
+  const permissions = response.permissions ?? response.user.permissions ?? [];
+
+  return {
+    accessToken: response.accessToken,
+    refreshToken: response.refreshToken,
+    accessTokenExpiresAt: response.accessTokenExpiresAt,
+    refreshTokenExpiresAt: response.refreshTokenExpiresAt,
+    tokenType: response.tokenType,
+    roles,
+    permissions,
+    user: {
+      id: response.user.id,
+      email: response.user.email,
+      displayName: response.user.displayName,
+      roleName: roles[0] ?? "",
+      initials: createInitials(response.user.displayName),
+      tenantId: response.user.tenantId,
+      tenantName: response.user.tenantName,
+    },
+  };
+};
 
 export const loginRequest = async (payload: LoginRequest): Promise<LoginResponse> => {
-  // TEMPORARY FRONTEND TESTING:
-  // Backend login endpoint is currently not implemented.
-  // This fallback allows frontend authentication testing while lead APIs use the live backend.
-  // Remove or disable this fallback when the backend login API is available.
-  if (TEMPORARY_FRONTEND_LOGIN_FALLBACK && matchesDemoLogin(payload)) {
-    await mockLatency();
-    persistMockSession(true);
-    return demoLoginResponse;
-  }
-
-  if (USE_MOCK) {
-    await mockLatency();
-
-    if (!matchesDemoLogin(payload)) {
-      throw new NormalizedApiError(ERROR_CODES.UNAUTHORIZED, "Invalid email or password.", 401);
-    }
-
-    persistMockSession(true);
-    return demoLoginResponse;
-  }
-
   const response = await http.post(API_ENDPOINTS.auth.login, payload);
-  return unwrapData<LoginResponse>(response.data);
+  const result = mapLoginResponse(unwrapData<BackendLoginResponse>(response.data));
+  saveRefreshToken(result.refreshToken);
+  return result;
 };
 
 export const refreshSessionRequest = async (): Promise<LoginResponse> => {
-  // TEMPORARY FRONTEND TESTING: Restore the temporary demo session after a page refresh.
-  if (TEMPORARY_FRONTEND_LOGIN_FALLBACK && hasMockSession()) {
-    await mockLatency(120);
-    return demoLoginResponse;
-  }
-
-  if (USE_MOCK) {
-    await mockLatency(120);
-    if (!hasMockSession()) {
-      throw new NormalizedApiError(ERROR_CODES.UNAUTHORIZED, "No session to restore.", 401);
-    }
-    return demoLoginResponse;
-  }
-
-  const response = await http.post(API_ENDPOINTS.auth.refresh);
-  return unwrapData<LoginResponse>(response.data);
+  const refreshToken = getRefreshToken();
+  const response = await http.post(
+    API_ENDPOINTS.auth.refresh,
+    refreshToken ? { refreshToken } : undefined,
+  );
+  const result = mapLoginResponse(unwrapData<BackendLoginResponse>(response.data));
+  saveRefreshToken(result.refreshToken ?? refreshToken ?? undefined);
+  return result;
 };
 
 export const logoutRequest = async (): Promise<void> => {
-  // TEMPORARY FRONTEND TESTING: Clear the temporary session without calling the unavailable API.
-  if (TEMPORARY_FRONTEND_LOGIN_FALLBACK && hasMockSession()) {
-    persistMockSession(false);
-    return;
+  try {
+    await http.post(API_ENDPOINTS.auth.logout);
+  } finally {
+    saveRefreshToken();
   }
-
-  if (USE_MOCK) {
-    persistMockSession(false);
-    return;
-  }
-
-  await http.post(API_ENDPOINTS.auth.logout);
 };

@@ -5,14 +5,33 @@ export interface AuthUser {
   roleName: string;
   initials: string;
   tenantId: string;
+  tenantName?: string;
 }
 
-export interface AuthTokens {
+interface BackendAuthUser {
+  id: string;
+  tenantId: string;
+  tenantName?: string;
+  email: string;
+  userName?: string;
+  displayName: string;
+  roles?: string[];
+  permissions?: string[];
+}
+
+export interface BackendLoginResponse {
   accessToken: string;
-  expiresInSeconds: number;
+  refreshToken?: string;
+  accessTokenExpiresAt?: string;
+  refreshTokenExpiresAt?: string;
+  tokenType?: string;
+  user: BackendAuthUser;
+  roles?: string[];
+  permissions?: string[];
 }
 
 export interface LoginRequest {
+  tenantCode: string;
   email: string;
   password: string;
 }
@@ -20,7 +39,10 @@ export interface LoginRequest {
 export interface LoginResponse {
   user: AuthUser;
   accessToken: string;
-  expiresInSeconds: number;
+  refreshToken?: string;
+  accessTokenExpiresAt?: string;
+  refreshTokenExpiresAt?: string;
+  tokenType?: string;
   roles: string[];
   permissions: string[];
 }
