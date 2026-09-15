@@ -2,8 +2,10 @@
  * Every backend path lives here. Pages and services must not embed URL strings.
  * Resource names follow the process-flow contract: /api/v1/ + plural snake_case.
  */
+// In dev, an unset VITE_API_BASE_URL resolves to a relative path so requests
+// go through the Vite proxy (same-origin) instead of hitting Railway directly.
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://i-erp-backend-production.up.railway.app";
+  import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "" : "https://i-erp-backend-production.up.railway.app");
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 // Dashboard snapshot is not available in the deployed API yet.

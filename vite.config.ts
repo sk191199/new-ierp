@@ -12,5 +12,14 @@ export default defineConfig({
   server: {
     port: 5173,
     open: false,
+    // Proxies same-origin /api requests to Railway so the browser never issues
+    // a cross-origin request in dev, avoiding preflight/CORS entirely.
+    proxy: {
+      "/api": {
+        target: "https://i-erp-backend-production.up.railway.app",
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
 });
