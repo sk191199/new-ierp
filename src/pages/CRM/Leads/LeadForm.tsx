@@ -951,27 +951,29 @@ export const LeadForm = ({
           >
             {/* CONVERT TO OPPORTUNITY */}
 
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<SwapHorizOutlinedIcon />}
-            // IMPORTANT: Keep this button enabled so clicking it can reveal
-            // the existing LeadForm validation errors for incomplete leads.
-            onClick={handleConvertToOpportunity}
-            sx={{
-              flex: 1,
-              bgcolor: "#e8f9f3",
-              color: "#0aae83",
-              borderColor: "#b9eadc",
+          {!hideConvertToOpportunity ? (
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<SwapHorizOutlinedIcon />}
+              // IMPORTANT: Keep this button enabled so clicking it can reveal
+              // the existing LeadForm validation errors for incomplete leads.
+              onClick={handleConvertToOpportunity}
+              sx={{
+                flex: 1,
+                bgcolor: "#e8f9f3",
+                color: "#0aae83",
+                borderColor: "#b9eadc",
 
-              "&:hover": {
-                bgcolor: "#d9f5ec",
-                borderColor: "#0aae83",
-              },
-            }}
-          >
-            CONVERT TO OPPORTUNITY
-          </Button>
+                "&:hover": {
+                  bgcolor: "#d9f5ec",
+                  borderColor: "#0aae83",
+                },
+              }}
+            >
+              CONVERT TO OPPORTUNITY
+            </Button>
+          ) : null}
 
             {/* DISCARD CHANGES */}
 
