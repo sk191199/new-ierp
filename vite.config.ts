@@ -16,7 +16,7 @@ export default defineConfig({
     // a cross-origin request in dev, avoiding preflight/CORS entirely.
     proxy: {
       "/api": {
-        target: "https://i-erp-backend-production.up.railway.app",
+        target: "https://i-erp-backend-1.onrender.com/",
         changeOrigin: true,
         secure: true,
       },
