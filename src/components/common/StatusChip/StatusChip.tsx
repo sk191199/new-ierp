@@ -5,7 +5,6 @@ type StatusTone = "default" | "success" | "warning" | "error" | "info";
 
 const toneByStatus: Record<string, StatusTone> = {
   New: "default",
-  Contacted: "info",
   Qualified: "success",
   Disqualified: "error",
   Paid: "success",

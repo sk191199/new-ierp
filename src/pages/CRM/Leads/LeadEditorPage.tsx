@@ -165,9 +165,14 @@ export const LeadEditorPage = ({ mode }: LeadEditorPageProps) => {
       throw cause;
     }
 
+    if (draft.status === "Converted") {
+      return;
+    }
+
     setSubmitting(true);
     try {
       await convertLeadToOpportunity(id, data);
+      setDraft((current) => ({ ...current, status: "Converted" }));
       dispatch(toastShown({ message: "Lead converted to opportunity.", severity: "success" }));
       await loadLead(false);
       navigate(ROUTES.crm.opportunities);

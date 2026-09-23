@@ -36,11 +36,37 @@ const OpportunityEditPage = lazy(() =>
     default: module.OpportunityEditPage,
   })),
 );
+const OpportunityCreatePage = lazy(() =>
+  import("@/pages/CRM/Opportunities/OpportunityCreatePage").then((module) => ({
+    default: module.OpportunityCreatePage,
+  })),
+);
+const SalesEnquiriesPage = lazy(() =>
+  import("@/pages/Sales/SalesEnquiry/SalesEnquiriesPage").then((module) => ({
+    default: module.SalesEnquiriesPage,
+  })),
+);
+const SalesEnquiryEditorPage = lazy(() =>
+  import("@/pages/Sales/SalesEnquiry/SalesEnquiryEditorPage").then((module) => ({
+    default: module.SalesEnquiryEditorPage,
+  })),
+);
+const SalesQuotationsPage = lazy(() =>
+  import("@/pages/Sales/SalesQuotation/SalesQuotationsPage").then((module) => ({
+    default: module.SalesQuotationsPage,
+  })),
+);
+const SalesQuotationEditorPage = lazy(() =>
+  import("@/pages/Sales/SalesQuotation/SalesQuotationEditorPage").then((module) => ({
+    default: module.SalesQuotationEditorPage,
+  })),
+);
 const CustomerMasterPage = lazy(() =>
   import("@/pages/Masters/CustomerMasterPage").then((module) => ({
     default: module.CustomerMasterPage,
   })),
 );
+
 const ModulePlaceholder = lazy(() =>
   import("@/pages/ModulePlaceholder/ModulePlaceholder").then((module) => ({
     default: module.ModulePlaceholder,
@@ -98,6 +124,7 @@ export const AppRoutes = () => {
               element: <ModulePlaceholder title="Contact Directory" module="CRM" />,
             },
             { path: ROUTES.crm.opportunities, element: <OpportunitiesPage /> },
+            { path: ROUTES.crm.opportunityNew, element: <OpportunityCreatePage /> },
             { path: "/crm/opportunities/:id", element: <OpportunityViewPage /> },
             { path: "/crm/opportunities/:id/edit", element: <OpportunityEditPage /> },
             {
@@ -109,8 +136,32 @@ export const AppRoutes = () => {
               element: <ModulePlaceholder title="Campaign Manager" module="CRM" />,
             },
             {
+              path: ROUTES.sales.enquiries,
+              element: <SalesEnquiriesPage />,
+            },
+            {
+              path: ROUTES.sales.enquiryNew,
+              element: <SalesEnquiryEditorPage mode="create" />,
+            },
+            {
+              path: ROUTES.sales.enquiryEdit(":id"),
+              element: <SalesEnquiryEditorPage mode="edit" />,
+            },
+            {
+              path: ROUTES.sales.quotationNew,
+              element: <SalesQuotationEditorPage mode="create" />,
+            },
+            {
+              path: ROUTES.sales.quotationEdit(":id"),
+              element: <SalesQuotationEditorPage mode="edit" />,
+            },
+            {
               path: ROUTES.sales.quotations,
-              element: <ModulePlaceholder title="Quotations" module="Sales" />,
+              element: <SalesQuotationsPage />,
+            },
+            {
+              path: ROUTES.sales.projects,
+              element: <ModulePlaceholder title="Projects" module="Sales" />,
             },
             {
               path: ROUTES.sales.orders,
@@ -119,6 +170,14 @@ export const AppRoutes = () => {
             {
               path: ROUTES.sales.invoices,
               element: <ModulePlaceholder title="Sales Invoices" module="Sales" />,
+            },
+            {
+              path: ROUTES.sales.creditDebitNotes,
+              element: <ModulePlaceholder title="Credit / Debit Notes" module="Sales" />,
+            },
+            {
+              path: ROUTES.sales.deliveryOrders,
+              element: <ModulePlaceholder title="Delivery Order" module="Sales" />,
             },
             {
               path: ROUTES.purchase.orders,
@@ -178,6 +237,14 @@ export const AppRoutes = () => {
             },
             {
               path: "/settings/catalog/:module",
+              element: <ConfiguredScreenPage />,
+            },
+            {
+              path: "/dynamic/:module/:screen",
+              element: <ConfiguredScreenPage />,
+            },
+            {
+              path: "/dynamic/:module",
               element: <ConfiguredScreenPage />,
             },
           ],

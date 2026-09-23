@@ -22,7 +22,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import {
   CreatableSelectField,
@@ -77,6 +77,8 @@ interface LeadFormProps {
   onSubmit: () => void;
   onClose?: () => void;
   onReset?: () => void;
+  extraContent?: ReactNode;
+  hideConvertToOpportunity?: boolean;
 }
 
 export const LeadForm = ({
@@ -91,6 +93,8 @@ export const LeadForm = ({
   onSubmit,
   onClose,
   onReset,
+  extraContent,
+  hideConvertToOpportunity = false,
 }: LeadFormProps) => {
   const [attempted, setAttempted] = useState(false);
   const [showNewFollowUp, setShowNewFollowUp] = useState(mode === "create");
@@ -196,6 +200,8 @@ export const LeadForm = ({
   // ============================================================
   // FORM VALIDATION
   // ============================================================
+
+  const alreadyConverted = value.status === "Converted";
 
   const errors = useMemo(() => {
     const next: Partial<Record<keyof LeadDraft, string>> = {};
@@ -351,8 +357,9 @@ export const LeadForm = ({
    * incomplete lead from being converted without duplicating validation rules.
    */
   const handleConvertToOpportunity = () => {
-    // Prevent opening another conversion flow while a submission is in progress.
-    if (submitting) {
+    // Prevent opening another conversion flow while a submission is in progress
+    // or when the backend already indicates this lead has been converted.
+    if (submitting || alreadyConverted) {
       return;
     }
 
@@ -388,7 +395,7 @@ export const LeadForm = ({
   };
 
   const submitOpportunityConversion = async (data: OpportunityFormData) => {
-    if (!onConvertToOpportunity) {
+    if (!onConvertToOpportunity || alreadyConverted) {
       setConversionOpen(false);
       return;
     }
@@ -690,6 +697,8 @@ export const LeadForm = ({
 
         {renderUnmappedCustomSections()}
 
+        {extraContent}
+
         {/* ============================================================
             FOLLOW-UPS
             ============================================================ */}
@@ -942,27 +951,27 @@ export const LeadForm = ({
           >
             {/* CONVERT TO OPPORTUNITY */}
 
-            <Button
-              type="button"
-              variant="outlined"
-              startIcon={<SwapHorizOutlinedIcon />}
-              // IMPORTANT: Keep this button enabled so clicking it can reveal
-              // the existing LeadForm validation errors for incomplete leads.
-              onClick={handleConvertToOpportunity}
-              sx={{
-                minWidth: { xs: "100%", sm: 170 },
-                bgcolor: "#e8f9f3",
-                color: "#0aae83",
-                borderColor: "#b9eadc",
+          <Button
+            type="button"
+            variant="outlined"
+            startIcon={<SwapHorizOutlinedIcon />}
+            // IMPORTANT: Keep this button enabled so clicking it can reveal
+            // the existing LeadForm validation errors for incomplete leads.
+            onClick={handleConvertToOpportunity}
+            sx={{
+              flex: 1,
+              bgcolor: "#e8f9f3",
+              color: "#0aae83",
+              borderColor: "#b9eadc",
 
-                "&:hover": {
-                  bgcolor: "#d9f5ec",
-                  borderColor: "#0aae83",
-                },
-              }}
-            >
-              CONVERT TO OPPORTUNITY
-            </Button>
+              "&:hover": {
+                bgcolor: "#d9f5ec",
+                borderColor: "#0aae83",
+              },
+            }}
+          >
+            CONVERT TO OPPORTUNITY
+          </Button>
 
             {/* DISCARD CHANGES */}
 

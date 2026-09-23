@@ -136,7 +136,7 @@ index.html
          AppToaster
     → App
          bindHttpAuth()     attach token accessors to Axios
-         hydrateSession()   POST /auth/refresh or restore mock session
+          hydrateSession()   POST /auth/refresh when a refresh token is stored
          AppRoutes
 ```
 
@@ -208,7 +208,7 @@ Sidebar items come from `layouts/Sidebar/navigationConfig.ts` (label, icon, path
 Documented backend model:
 
 1. Login returns a JWT access token.
-2. Refresh token is an HttpOnly cookie (never stored in `localStorage`).
+2. Refresh token is returned in the response body and stored in `sessionStorage`.
 3. Access token lifetime is 15 minutes.
 4. Concurrent 401s share **one** refresh call (queue).
 5. Failed refresh clears session and redirects to `/login`.
@@ -218,6 +218,7 @@ Documented backend model:
 `configurations/api/requestBuilder.ts`
 
 - Request interceptor attaches `Authorization: Bearer <accessToken>`
+- Login and refresh requests do not carry a Bearer token.
 - Response interceptor:
   - ignores the refresh URL itself
   - on `401` / `TOKEN_EXPIRED`, runs a single in-flight refresh
@@ -228,12 +229,8 @@ Documented backend model:
 
 - `status`: `idle` → `hydrating` → `authenticated` | `unauthenticated`
 - Access token lives in Redux memory only
-- Mock mode persists a **session flag** in `sessionStorage` (`ierp.mock-session`), not a refresh token
-
-Demo credentials (mock mode):
-
-- Email: `aarav.mehta@ierp.local`
-- Password: `Demo@Ierp2026`
+- Refresh tokens use the HttpOnly cookie supplied by the backend. When the backend
+  returns a refresh token in the response body, it is stored only in `sessionStorage`.
 
 ---
 
@@ -405,7 +402,7 @@ Leads stay a **hybrid/core screen** with a fixed worklist and form. They are not
 
 | Feature | Service | Mock |
 | --- | --- | --- |
-| Auth | `redux/features/auth/authService.ts` | `pages/Auth/auth.mock.ts` |
+| Auth | `redux/features/auth/authSlice.ts` | `configurations/api/authApi.ts` |
 | Dashboard | `pages/Dashboard/dashboardApi.ts` | `pages/Dashboard/dashboard.mock.ts` |
 | Leads | `pages/CRM/Leads/leadsApi.ts` | `pages/CRM/Leads/leads.mock.ts` |
 | Metadata | `components/metadata/metadataApi.ts` | `pages/Masters/customers.metadata.mock.ts` |

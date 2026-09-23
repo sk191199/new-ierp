@@ -8,14 +8,14 @@ import { permissionsLoaded } from "@/redux/features/permissions/permissionSlice"
 import { tenantLoaded } from "@/redux/features/tenant/tenantSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
-import { DEMO_LOGIN } from "./auth.mock";
 
 export const LoginPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState(DEMO_LOGIN.email);
-  const [password, setPassword] = useState(DEMO_LOGIN.password);
+  const [tenantCode, setTenantCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const redirectTo = (location.state as { from?: string } | null)?.from ?? ROUTES.dashboard;
@@ -25,10 +25,10 @@ export const LoginPage = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await loginRequest({ email, password });
+      const result = await loginRequest({ tenantCode, email, password });
       dispatch(sessionEstablished({ user: result.user, accessToken: result.accessToken }));
       dispatch(permissionsLoaded({ roles: result.roles, permissions: result.permissions }));
-      dispatch(tenantLoaded({ tenantId: result.user.tenantId, tenantName: "i-ERP HQ" }));
+      dispatch(tenantLoaded({ tenantId: result.user.tenantId, tenantName: result.user.tenantName }));
       navigate(redirectTo, { replace: true });
     } catch (cause) {
       const message = getErrorMessage(cause);
@@ -63,10 +63,17 @@ export const LoginPage = () => {
               Sign in
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-              Access token lifetime is 15 minutes. Refresh tokens stay in an HttpOnly cookie.
+              Access tokens expire according to the backend session policy.
             </Typography>
           </Box>
           {error ? <Alert severity="error">{error}</Alert> : null}
+          <TextField
+            label="Tenant Code"
+            value={tenantCode}
+            onChange={(event) => setTenantCode(event.target.value)}
+            required
+            autoComplete="organization"
+          />
           <TextField
             label="Email"
             type="email"
@@ -86,9 +93,6 @@ export const LoginPage = () => {
           <Button type="submit" variant="contained" disabled={submitting} sx={{ minHeight: 42 }}>
             {submitting ? "Authenticating…" : "Enter terminal"}
           </Button>
-          <Typography variant="caption" color="text.secondary">
-            Demo session: {DEMO_LOGIN.email}
-          </Typography>
         </Stack>
       </Paper>
     </Box>

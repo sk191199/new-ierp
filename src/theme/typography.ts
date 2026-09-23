@@ -2,7 +2,7 @@
 import type { TypographyVariantsOptions } from "@mui/material/styles";
 
 export const typography: TypographyVariantsOptions = {
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif;",
 
   h1: {
     fontSize: "1.75rem",

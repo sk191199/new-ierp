@@ -1,9 +1,12 @@
+import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import { Box, IconButton, LinearProgress, Link, Stack, Tooltip, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { Box, Button, IconButton, LinearProgress, Link, Stack, Tooltip, Typography } from "@mui/material";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -267,6 +270,30 @@ export const OpportunitiesPage = () => {
         eyebrow="TERMINAL · CRM & CUSTOMER ENGAGEMENT"
         title="Opportunity Pipeline"
         description="Track active deals, forecast value, and close momentum."
+        actions={
+          <Stack direction="row" gap={1} alignItems="center">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate(ROUTES.crm.opportunityNew)}
+              sx={{
+                letterSpacing: "0.08em",
+                boxShadow: (theme) => `0 0 22px ${alpha(theme.palette.primary.main, 0.45)}`,
+              }}
+            >
+              NEW OPPORTUNITY
+            </Button>
+            <Tooltip title="Worklist settings">
+              <IconButton
+                aria-label="Worklist settings"
+                onClick={() => navigate(ROUTES.settings)}
+                sx={{ width: 40, height: 40, border: 1, borderColor: "divider", borderRadius: 1.5 }}
+              >
+                <SettingsOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        }
       />
       <Box
         sx={{

@@ -67,6 +67,26 @@ export interface ScreenMetadata {
   actions: MetadataAction[];
 }
 
+export interface MetadataModuleScreen {
+  id: string;
+  code: string;
+  name: string;
+  route: string;
+  entityName: string;
+  apiBasePath: string;
+  moduleId?: string;
+}
+
+export interface MetadataModule {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  source: string;
+  screens: MetadataModuleScreen[];
+}
+
 export interface CustomFieldDefinition {
   entityName: string;
   fieldKey: string;
