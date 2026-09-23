@@ -1,5 +1,6 @@
 import { API_ENDPOINTS, http, unwrapData } from "@/configurations/api/api";
 import type { MetadataModule, MetadataModuleScreen } from "@/models/metadata/metadata";
+import { getScreenMetadata } from "./metadataApi";
 import { getAllModules, getSettingsModules, createDynamicModuleEntity, MODULES_UPDATED_EVENT } from "./modulesApi";
 
 interface SettingsMutationResponse<T> {
@@ -38,6 +39,7 @@ export const getSettingsScreens = async (
 };
 
 export { createDynamicModuleEntity, getAllModules, getSettingsModules };
+export { getScreenMetadata };
 
 export const notifyModulesUpdated = (): void => {
   window.dispatchEvent(new Event(MODULES_UPDATED_EVENT));

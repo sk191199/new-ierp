@@ -33,13 +33,14 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
-import type { MetadataModule } from "@/models/metadata/metadata";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MetadataModule, ScreenMetadata } from "@/models/metadata/metadata";
 import {
   createDynamicModuleEntity,
   createSettingsModule,
   createSettingsScreen,
   getAllModules,
+  getScreenMetadata,
   notifyModulesUpdated,
 } from "@/configurations/api/settingsService";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
@@ -250,6 +251,53 @@ const buildFieldsForScreen = (
   }));
 };
 
+const mapScreenMetadata = (
+  metadata: ScreenMetadata,
+  module: string,
+  screen: string,
+  customFields: LeadCustomField[],
+  fallbackFields: ArchitectSection[],
+): ArchitectSection[] => {
+  const fallbackVisibility = Object.fromEntries(
+    fallbackFields.flatMap((section) => section.fields.map((field) => [field.id, field.visible])),
+  );
+  const backendSections = metadata.sections.map((section) => ({
+    title: section.title,
+    description: section.description ?? "Configured screen fields.",
+    fields: section.fields.map((field) => ({
+      label: field.label,
+      id: field.fieldKey,
+      type: field.dataType || field.controlType,
+      required: field.required,
+      visible: typeof field.visible === "boolean" ? field.visible : fallbackVisibility[field.fieldKey] ?? true,
+    })),
+  }));
+  const screenCustomFields = customFields.filter(
+    (field) => field.module === module && field.screen === screen,
+  );
+  const knownFieldIds = new Set(backendSections.flatMap((section) => section.fields.map((field) => field.id)));
+  const sections = backendSections.map((section) => ({
+    ...section,
+    fields: [
+      ...section.fields,
+      ...screenCustomFields
+        .filter((field) => field.section === section.title && !knownFieldIds.has(field.id))
+        .map((field) => ({ ...field, visible: fallbackVisibility[field.id] ?? true })),
+    ],
+  }));
+  const knownSectionNames = new Set(sections.map((section) => section.title));
+  const customSections = Array.from(new Set(screenCustomFields.map((field) => field.section)))
+    .filter((title) => !knownSectionNames.has(title))
+    .map((title) => ({
+      title,
+      description: `Custom ${screen} fields.`,
+      fields: screenCustomFields
+        .filter((field) => field.section === title && !knownFieldIds.has(field.id))
+        .map((field) => ({ ...field, visible: fallbackVisibility[field.id] ?? true })),
+    }));
+  return [...sections, ...customSections];
+};
+
 export const SystemSettingsPage = () => {
   const [activeSection, setActiveSection] = useState("Screen Architect");
   const [activeModule, setActiveModule] = useState("");
@@ -283,9 +331,57 @@ export const SystemSettingsPage = () => {
   });
   const [newSectionName, setNewSectionName] = useState("");
   const [customFieldModule, setCustomFieldModule] = useState(activeModule);
+  const metadataRequestId = useRef(0);
   const dispatch = useAppDispatch();
   const modules = catalog.modules;
   const screensByModule = catalog.screensByModule;
+
+  const loadScreenFields = useCallback(
+    async (moduleName: string, screenName: string, availableModules = backendModules) => {
+      const fallbackFields = buildFieldsForScreen(
+        moduleName,
+        screenName,
+        sectionsByScreen,
+        customFields,
+      );
+      setFields(fallbackFields);
+
+      if (moduleName === "CRM & Customer Engagement" && screenName === "Lead Management") {
+        return;
+      }
+
+      const selectedModule = availableModules.find((item) => item.name === moduleName);
+      const selectedScreen = selectedModule?.screens.find((item) => item.name === screenName);
+      const screenCode = selectedScreen?.code;
+      if (!screenCode) {
+        return;
+      }
+
+      const requestId = ++metadataRequestId.current;
+      setModulesLoading(true);
+      try {
+        const metadata = await getScreenMetadata(screenCode);
+        if (requestId !== metadataRequestId.current) {
+          return;
+        }
+        setFields(mapScreenMetadata(metadata, moduleName, screenName, customFields, fallbackFields));
+      } catch (cause) {
+        if (requestId === metadataRequestId.current) {
+          dispatch(
+            toastShown({
+              message: `Failed to load screen metadata. ${getErrorMessage(cause)}`,
+              severity: "error",
+            }),
+          );
+        }
+      } finally {
+        if (requestId === metadataRequestId.current) {
+          setModulesLoading(false);
+        }
+      }
+    },
+    [backendModules, customFields, dispatch, sectionsByScreen],
+  );
 
   const applyBackendModules = useCallback(
     (nextModules: MetadataModule[], preferredModule?: string, preferredScreen?: string) => {
@@ -344,6 +440,13 @@ export const SystemSettingsPage = () => {
     void loadBackendModules();
   }, [loadBackendModules]);
 
+  useEffect(() => {
+    if (!activeModule || !activeScreen || backendModules.length === 0) {
+      return;
+    }
+    void loadScreenFields(activeModule, activeScreen);
+  }, [activeModule, activeScreen, backendModules, loadScreenFields]);
+
   const toggleField = (id: string) => {
     setFields((current) =>
       current.map((section) => ({
@@ -357,10 +460,11 @@ export const SystemSettingsPage = () => {
 
   const selectModule = (module: string) => {
     const screens = screensByModule[module] ?? [];
+    const nextScreen = screens[0] ?? "";
     setActiveModule(module);
-    setActiveScreen(screens[0] ?? "");
+    setActiveScreen(nextScreen);
     setCustomFieldModule(module);
-    setFields(buildFieldsForScreen(module, screens[0] ?? "", sectionsByScreen, customFields));
+    setFields(buildFieldsForScreen(module, nextScreen, sectionsByScreen, customFields));
   };
 
   const selectScreen = (screen: string) => {
@@ -1441,8 +1545,8 @@ const FieldRow = ({
       display: "grid",
       gridTemplateColumns: {
         xs: "40px minmax(0, 1fr)",
-        sm: "42px minmax(180px, 1.3fr) minmax(130px, 0.85fr) minmax(130px, 0.85fr) minmax(150px, 0.8fr)",
-        md: "42px minmax(220px, 1.45fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 0.9fr)",
+        sm: "42px minmax(0, 1.3fr) minmax(0, 0.85fr) minmax(0, 0.85fr) 76px",
+        md: "42px minmax(0, 1.45fr) minmax(90px, 1fr) minmax(90px, 1fr) 76px",
       },
       gap: { xs: 1.25, md: 1.25, xl: 2 },
       alignItems: "center",
@@ -1540,7 +1644,13 @@ const FieldRow = ({
         {field.required ? "Required" : "Optional"}
       </Typography>
     </Box>
-    <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={1} sx={{ minWidth: 0 }}>
+    <Stack
+      direction={{ xs: "row", sm: "column" }}
+      alignItems={{ xs: "center", sm: "flex-end" }}
+      justifyContent="center"
+      gap={{ xs: 1, sm: 0.25 }}
+      sx={{ minWidth: 0, overflow: "visible" }}
+    >
       <Box>
         <Typography
           variant="caption"
