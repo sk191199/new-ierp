@@ -33,7 +33,7 @@ Copy `.env.example` to `.env`.
 | `VITE_USE_MOCK` | Set to `true` only for non-auth feature mock data |
 | `VITE_USE_DEV_HEADERS` | Keep `false` when using JWT authentication |
 
-Use `VITE_API_BASE_URL=https://i-erp-backend-production.up.railway.app`,
+Use `VITE_API_BASE_URL=https://i-erp-backend-1.onrender.com`,
 `VITE_USE_MOCK=false`, and `VITE_USE_DEV_HEADERS=false` for the real backend.
 Access tokens stay in memory. Refresh tokens use an HttpOnly cookie when provided
 by the backend, or session storage when the backend returns a refresh token.
