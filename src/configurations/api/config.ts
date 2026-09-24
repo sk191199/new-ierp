@@ -45,6 +45,7 @@ export const API_ENDPOINTS = {
   },
   dynamicModules: "/api/v1/dynamic_modules",
   dynamicModuleEntities: (moduleId: string) => `/api/v1/dynamic_modules/${moduleId}/entities`,
+  dynamicModuleEntityFields: (entityId: string) => `/api/v1/dynamic_modules/entities/${entityId}/fields`,
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 20;

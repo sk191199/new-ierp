@@ -1,7 +1,15 @@
 import { API_ENDPOINTS, http, unwrapData } from "@/configurations/api/api";
 import type { MetadataModule, MetadataModuleScreen } from "@/models/metadata/metadata";
 import { getScreenMetadata } from "./metadataApi";
-import { getAllModules, getSettingsModules, createDynamicModuleEntity, MODULES_UPDATED_EVENT } from "./modulesApi";
+import {
+  getAllModules,
+  getSettingsModules,
+  createDynamicModuleEntity,
+  createDynamicModuleEntityField,
+  MODULES_UPDATED_EVENT,
+  type CreateDynamicModuleEntityFieldPayload,
+  type DynamicModuleEntityField,
+} from "./modulesApi";
 
 interface SettingsMutationResponse<T> {
   success: boolean;
@@ -39,6 +47,8 @@ export const getSettingsScreens = async (
 };
 
 export { createDynamicModuleEntity, getAllModules, getSettingsModules };
+export { createDynamicModuleEntityField };
+export type { CreateDynamicModuleEntityFieldPayload, DynamicModuleEntityField };
 export { getScreenMetadata };
 
 export const notifyModulesUpdated = (): void => {

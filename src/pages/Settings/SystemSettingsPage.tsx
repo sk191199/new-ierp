@@ -34,14 +34,16 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MetadataModule, ScreenMetadata } from "@/models/metadata/metadata";
+import type { MetadataModule, MetadataModuleScreen, ScreenMetadata } from "@/models/metadata/metadata";
 import {
   createDynamicModuleEntity,
+  createDynamicModuleEntityField,
   createSettingsModule,
   createSettingsScreen,
   getAllModules,
   getScreenMetadata,
   notifyModulesUpdated,
+  type CreateDynamicModuleEntityFieldPayload,
 } from "@/configurations/api/settingsService";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import {
@@ -298,6 +300,33 @@ const mapScreenMetadata = (
   return [...sections, ...customSections];
 };
 
+const CUSTOM_FIELD_DATA_TYPE_MAP: Record<LeadCustomField["type"], string> = {
+  "Text / Char": "string",
+  Number: "number",
+  Date: "date",
+  "Long Text": "text",
+};
+
+const mapCustomFieldDataType = (type: LeadCustomField["type"]): string =>
+  CUSTOM_FIELD_DATA_TYPE_MAP[type] ?? "string";
+
+// Converts a field label such as "Customer Reference" into "customerReference".
+const createFieldKey = (label: string): string =>
+  label
+    .trim()
+    .replace(/[^a-zA-Z0-9]+(.)?/g, (_match, char?: string) => (char ? char.toUpperCase() : ""))
+    .replace(/^[A-Z]/, (char) => char.toLowerCase());
+
+const getSelectedScreenEntity = (
+  module: string,
+  screen: string,
+  availableModules: MetadataModule[],
+): MetadataModuleScreen | undefined =>
+  availableModules.find((item) => item.name === module)?.screens.find((item) => item.name === screen);
+
+const getNextDisplayOrder = (sections: ArchitectSection[], sectionTitle: string): number =>
+  sections.find((section) => section.title === sectionTitle)?.fields.length ?? 0;
+
 export const SystemSettingsPage = () => {
   const [activeSection, setActiveSection] = useState("Screen Architect");
   const [activeModule, setActiveModule] = useState("");
@@ -331,7 +360,12 @@ export const SystemSettingsPage = () => {
   });
   const [newSectionName, setNewSectionName] = useState("");
   const [customFieldModule, setCustomFieldModule] = useState(activeModule);
+  const [dialogSections, setDialogSections] = useState<ArchitectSection[]>([]);
+  const [dialogSectionsLoading, setDialogSectionsLoading] = useState(false);
+  const [dialogEntity, setDialogEntity] = useState<MetadataModuleScreen | undefined>(undefined);
+  const [submittingCustomField, setSubmittingCustomField] = useState(false);
   const metadataRequestId = useRef(0);
+  const dialogSectionsRequestId = useRef(0);
   const dispatch = useAppDispatch();
   const modules = catalog.modules;
   const screensByModule = catalog.screensByModule;
@@ -382,6 +416,56 @@ export const SystemSettingsPage = () => {
     },
     [backendModules, customFields, dispatch, sectionsByScreen],
   );
+
+  const loadDialogSections = useCallback(
+    async (moduleName: string, screenName: string) => {
+      const entity = getSelectedScreenEntity(moduleName, screenName, backendModules);
+      setDialogEntity(entity);
+      const fallbackFields = buildFieldsForScreen(moduleName, screenName, sectionsByScreen, customFields);
+      setDialogSections(fallbackFields);
+
+      if (moduleName === "CRM & Customer Engagement" && screenName === "Lead Management") {
+        return;
+      }
+      if (!entity?.code) {
+        return;
+      }
+
+      const requestId = ++dialogSectionsRequestId.current;
+      setDialogSectionsLoading(true);
+      try {
+        const metadata = await getScreenMetadata(entity.code);
+        if (requestId !== dialogSectionsRequestId.current) {
+          return;
+        }
+        if (metadata.sections.length > 0) {
+          setDialogSections(mapScreenMetadata(metadata, moduleName, screenName, customFields, fallbackFields));
+        }
+      } catch {
+        if (requestId === dialogSectionsRequestId.current) {
+          setDialogSections(fallbackFields);
+        }
+      } finally {
+        if (requestId === dialogSectionsRequestId.current) {
+          setDialogSectionsLoading(false);
+        }
+      }
+    },
+    [backendModules, customFields, sectionsByScreen],
+  );
+
+  useEffect(() => {
+    if (!customFieldDialogOpen) {
+      return;
+    }
+    const availableTitles = dialogSections.map((section) => section.title);
+    setCustomFieldDraft((current) => {
+      if (availableTitles.includes(current.section) || current.section === "__new__") {
+        return current;
+      }
+      return { ...current, section: availableTitles[0] ?? "__new__" };
+    });
+  }, [dialogSections, customFieldDialogOpen]);
 
   const applyBackendModules = useCallback(
     (nextModules: MetadataModule[], preferredModule?: string, preferredScreen?: string) => {
@@ -664,7 +748,7 @@ export const SystemSettingsPage = () => {
       ),
     );
 
-  const addCustomField = () => {
+  const addCustomField = async () => {
     const availableScreens = screensByModule[customFieldDraft.module] ?? [];
     if (!modules.includes(customFieldDraft.module) || !availableScreens.length) {
       setCustomFieldError(
@@ -692,40 +776,75 @@ export const SystemSettingsPage = () => {
     }
 
     const label = customFieldDraft.label.trim();
-    if (!label) {
+    if (!label || dialogSectionsLoading) {
       return;
     }
     const section =
       customFieldDraft.section === "__new__" ? newSectionName.trim() : customFieldDraft.section;
     if (!section) return;
-    const sectionKey = settingsScreenKey(customFieldDraft.module, customFieldDraft.screen);
-    const existingSections =
-      sectionsByScreen[sectionKey] ?? sectionsByScreen[customFieldDraft.screen] ?? [];
-    const nextSections = {
-      ...sectionsByScreen,
-      [sectionKey]: [...existingSections, ...(existingSections.includes(section) ? [] : [section])],
-    };
-    setSectionsByScreen(nextSections);
-    saveSectionsByScreen(nextSections);
-    const field = { ...customFieldDraft, section, id: `custom_${Date.now()}`, label };
-    const nextCustomFields = [...customFields, field];
-    setCustomFields(nextCustomFields);
-    saveLeadCustomFields(nextCustomFields);
-    if (field.module === activeModule && field.screen === activeScreen) {
-      setFields(buildFieldsForScreen(activeModule, activeScreen, nextSections, nextCustomFields));
+
+    const entity = dialogEntity;
+    if (!entity?.id) {
+      const message = "Unable to resolve the screen entity for this field. Please try again.";
+      setCustomFieldError(message);
+      dispatch(toastShown({ message, severity: "error" }));
+      return;
     }
-    setCustomFieldDraft({
-      label: "",
-      type: "Text / Char",
-      required: false,
-      module: "CRM & Customer Engagement",
-      screen: "Lead Management",
-      section: "Additional Information",
-    });
-    setNewSectionName("");
-    setCustomFieldError("");
-    setCustomFieldDialogOpen(false);
-    dispatch(toastShown({ message: "Custom field added successfully.", severity: "success" }));
+
+    const payload: CreateDynamicModuleEntityFieldPayload = {
+      fieldKey: createFieldKey(label),
+      label,
+      dataType: mapCustomFieldDataType(customFieldDraft.type),
+      displayOrder: getNextDisplayOrder(dialogSections, section),
+      isRequired: customFieldDraft.required,
+    };
+
+    setSubmittingCustomField(true);
+    try {
+      await createDynamicModuleEntityField(entity.id, payload);
+
+      const sectionKey = settingsScreenKey(customFieldDraft.module, customFieldDraft.screen);
+      const existingSections =
+        sectionsByScreen[sectionKey] ?? sectionsByScreen[customFieldDraft.screen] ?? [];
+      const nextSections = {
+        ...sectionsByScreen,
+        [sectionKey]: [...existingSections, ...(existingSections.includes(section) ? [] : [section])],
+      };
+      setSectionsByScreen(nextSections);
+      saveSectionsByScreen(nextSections);
+      const field = { ...customFieldDraft, section, id: `custom_${Date.now()}`, label };
+      const nextCustomFields = [...customFields, field];
+      setCustomFields(nextCustomFields);
+      saveLeadCustomFields(nextCustomFields);
+      if (field.module === activeModule && field.screen === activeScreen) {
+        if (activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management") {
+          setFields(buildFieldsForScreen(activeModule, activeScreen, nextSections, nextCustomFields));
+        } else {
+          await loadScreenFields(activeModule, activeScreen);
+        }
+      }
+      setCustomFieldDraft({
+        label: "",
+        type: "Text / Char",
+        required: false,
+        module: "CRM & Customer Engagement",
+        screen: "Lead Management",
+        section: "Additional Information",
+      });
+      setNewSectionName("");
+      setCustomFieldError("");
+      setCustomFieldDialogOpen(false);
+      dispatch(toastShown({ message: "Custom field added successfully.", severity: "success" }));
+    } catch (cause) {
+      dispatch(
+        toastShown({
+          message: `Failed to create custom field. ${getErrorMessage(cause)}`,
+          severity: "error",
+        }),
+      );
+    } finally {
+      setSubmittingCustomField(false);
+    }
   };
 
   return (
@@ -832,16 +951,12 @@ export const SystemSettingsPage = () => {
                     ? activeScreen
                     : availableScreens[0];
                   setCustomFieldError("");
-                  const availableSections =
-                    sectionsByScreen[settingsScreenKey(activeModule, screen)] ??
-                    sectionsByScreen[screen] ??
-                    [];
                   setCustomFieldDraft((current) => ({
                     ...current,
                     module: activeModule,
                     screen,
-                    section: availableSections[0] ?? "__new__",
                   }));
+                  void loadDialogSections(activeModule, screen);
                   setCustomFieldDialogOpen(true);
                 }}
                 onAddModule={() => setModuleDialogOpen(true)}
@@ -910,21 +1025,19 @@ export const SystemSettingsPage = () => {
                     screen: "",
                     section: "",
                   }));
+                  setDialogSections([]);
+                  setDialogEntity(undefined);
                   return;
                 }
 
                 const screen = nextScreens[0];
                 setCustomFieldError("");
-                const availableSections =
-                  sectionsByScreen[settingsScreenKey(module, screen)] ??
-                  sectionsByScreen[screen] ??
-                  [];
                 setCustomFieldDraft((current) => ({
                   ...current,
                   module,
                   screen,
-                  section: availableSections[0] ?? "__new__",
                 }));
+                void loadDialogSections(module, screen);
               }}
               fullWidth
               error={Boolean(customFieldError)}
@@ -961,15 +1074,8 @@ export const SystemSettingsPage = () => {
               onChange={(event) => {
                 const screen = event.target.value;
                 setCustomFieldError("");
-                const availableSections =
-                  sectionsByScreen[settingsScreenKey(customFieldDraft.module, screen)] ??
-                  sectionsByScreen[screen] ??
-                  [];
-                setCustomFieldDraft((current) => ({
-                  ...current,
-                  screen,
-                  section: availableSections[0] ?? "__new__",
-                }));
+                setCustomFieldDraft((current) => ({ ...current, screen }));
+                void loadDialogSections(customFieldDraft.module, screen);
               }}
               fullWidth
               error={Boolean(customFieldError)}
@@ -1006,6 +1112,8 @@ export const SystemSettingsPage = () => {
                 setCustomFieldDraft((current) => ({ ...current, section: event.target.value }))
               }
               fullWidth
+              disabled={dialogSectionsLoading}
+              helperText={dialogSectionsLoading ? "Loading sections…" : undefined}
               sx={{
                 "& .MuiInputLabel-root": {
                   fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
@@ -1025,15 +1133,9 @@ export const SystemSettingsPage = () => {
                 },
               }}
             >
-              {(
-                sectionsByScreen[
-                  settingsScreenKey(customFieldDraft.module, customFieldDraft.screen)
-                ] ??
-                sectionsByScreen[customFieldDraft.screen] ??
-                []
-              ).map((section) => (
-                <MenuItem key={section} value={section}>
-                  {section}
+              {dialogSections.map((section) => (
+                <MenuItem key={section.title} value={section.title}>
+                  {section.title}
                 </MenuItem>
               ))}
               <MenuItem value="__new__">Add new section</MenuItem>
@@ -1121,7 +1223,9 @@ export const SystemSettingsPage = () => {
               !customFieldDraft.screen.trim() ||
               !customFieldDraft.label.trim() ||
               !customFieldDraft.section.trim() ||
-              (customFieldDraft.section === "__new__" && !newSectionName.trim())
+              (customFieldDraft.section === "__new__" && !newSectionName.trim()) ||
+              dialogSectionsLoading ||
+              submittingCustomField
             }
             sx={{
               fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",

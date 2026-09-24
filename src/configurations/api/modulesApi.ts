@@ -48,6 +48,25 @@ interface DynamicModuleEntityResponse {
   message?: string;
 }
 
+export interface CreateDynamicModuleEntityFieldPayload {
+  fieldKey: string;
+  label: string;
+  dataType: string;
+  displayOrder: number;
+  isRequired: boolean;
+}
+
+export interface DynamicModuleEntityField extends CreateDynamicModuleEntityFieldPayload {
+  id: string;
+  entityId: string;
+}
+
+interface DynamicModuleEntityFieldResponse {
+  success: boolean;
+  data?: DynamicModuleEntityField;
+  message?: string;
+}
+
 export const getModules = async (): Promise<MetadataModule[]> => {
   const response = await http.get<MetadataModulesResponse>(API_ENDPOINTS.metadata.modules);
   return unwrapData<MetadataModule[]>(response.data);
@@ -105,6 +124,17 @@ export const createDynamicModuleEntity = async (
     payload,
   );
   return unwrapData<DynamicModuleEntity>(response.data);
+};
+
+export const createDynamicModuleEntityField = async (
+  entityId: string,
+  payload: CreateDynamicModuleEntityFieldPayload,
+): Promise<DynamicModuleEntityField> => {
+  const response = await http.post<DynamicModuleEntityFieldResponse>(
+    API_ENDPOINTS.dynamicModuleEntityFields(entityId),
+    payload,
+  );
+  return unwrapData<DynamicModuleEntityField>(response.data);
 };
 
 const mergeScreens = (metadataScreens: MetadataModule["screens"], dynamicScreens: MetadataModule["screens"]) => {
