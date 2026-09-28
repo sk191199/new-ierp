@@ -1,5 +1,10 @@
 import { API_ENDPOINTS, http, unwrapData } from "@/configurations/api/api";
-import type { MetadataModule } from "@/models/metadata/metadata";
+import type {
+  MetadataControlType,
+  MetadataField,
+  MetadataFieldOption,
+  MetadataModule,
+} from "@/models/metadata/metadata";
 import { settingsSlug } from "@/pages/Settings/settingsCatalog";
 
 export const MODULES_UPDATED_EVENT = "ierp.modules-updated";
@@ -19,6 +24,10 @@ export interface DynamicModuleEntity {
   isActive: boolean;
   apiBasePath?: string | null;
   fields?: unknown[] | null;
+}
+
+export interface NormalizedDynamicModuleEntity extends Omit<DynamicModuleEntity, "fields"> {
+  fields: MetadataField[];
 }
 
 export interface DynamicModule {
@@ -52,6 +61,8 @@ export interface CreateDynamicModuleEntityFieldPayload {
   fieldKey: string;
   label: string;
   dataType: string;
+  controlType?: MetadataControlType;
+  options?: MetadataFieldOption[];
   displayOrder: number;
   isRequired: boolean;
 }
@@ -82,6 +93,82 @@ const screenKey = (screen: { id?: string; code?: string; name: string }): string
 const moduleKey = (module: { id?: string; code?: string; name: string }): string =>
   normalizeKey(module.code ?? module.name);
 
+const normalizeDynamicEntityField = (value: unknown, index: number): MetadataField | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const field = value as Record<string, unknown>;
+  const fieldKey =
+    typeof field.fieldKey === "string"
+      ? field.fieldKey
+      : typeof field.key === "string"
+        ? field.key
+        : typeof field.name === "string"
+          ? field.name
+          : "";
+  if (!fieldKey) {
+    return null;
+  }
+
+  const label = typeof field.label === "string" ? field.label : fieldKey;
+  const dataType =
+    typeof field.dataType === "string"
+      ? field.dataType
+      : typeof field.type === "string"
+        ? field.type
+        : "string";
+  const rawControlType = String(field.controlType ?? dataType).toLowerCase();
+  const controlType: MetadataControlType = [
+    "text",
+    "number",
+    "date",
+    "boolean",
+    "select",
+    "lookup",
+    "textarea",
+  ].includes(rawControlType)
+    ? (rawControlType as MetadataControlType)
+    : rawControlType === "integer" || rawControlType === "decimal"
+      ? "number"
+      : rawControlType === "datetime"
+        ? "date"
+        : rawControlType === "longtext"
+          ? "textarea"
+          : "text";
+  const options = Array.isArray(field.options)
+    ? field.options.flatMap((option): MetadataFieldOption[] => {
+        if (!option || typeof option !== "object") {
+          return [];
+        }
+        const item = option as Record<string, unknown>;
+        return typeof item.value === "string" && typeof item.label === "string"
+          ? [{ value: item.value, label: item.label }]
+          : [];
+      })
+    : undefined;
+  const displayOrder = Number(field.displayOrder);
+
+  return {
+    fieldKey,
+    label,
+    dataType,
+    controlType,
+    required: Boolean(field.required ?? field.isRequired),
+    readOnly: Boolean(field.readOnly),
+    visible: field.visible !== false && field.isActive !== false,
+    width: Number.isFinite(Number(field.width)) ? Number(field.width) : 4,
+    displayOrder: Number.isFinite(displayOrder) ? displayOrder : index,
+    isCustom: true,
+    ...(options?.length ? { options } : {}),
+  };
+};
+
+export const normalizeDynamicEntityFields = (fields: unknown[] | null | undefined): MetadataField[] =>
+  (fields ?? [])
+    .map(normalizeDynamicEntityField)
+    .filter((field): field is MetadataField => field !== null);
+
 const normalizeDynamicModule = (module: DynamicModule): MetadataModule | null => {
   if (!module.name?.trim() || !module.isActive) {
     return null;
@@ -104,6 +191,8 @@ const normalizeDynamicModule = (module: DynamicModule): MetadataModule | null =>
         entityName: entity.entityName ?? settingsSlug(entity.displayName ?? ""),
         apiBasePath: entity.apiBasePath ?? "",
         moduleId: entity.moduleId,
+        source: "dynamic",
+        fields: normalizeDynamicEntityFields(entity.fields),
       })),
   };
 };
@@ -124,6 +213,16 @@ export const createDynamicModuleEntity = async (
     payload,
   );
   return unwrapData<DynamicModuleEntity>(response.data);
+};
+
+export const getDynamicModuleEntity = async (
+  entityId: string,
+): Promise<NormalizedDynamicModuleEntity> => {
+  const response = await http.get<DynamicModuleEntityResponse>(
+    API_ENDPOINTS.dynamicModuleEntity(entityId),
+  );
+  const entity = unwrapData<DynamicModuleEntity>(response.data);
+  return { ...entity, fields: normalizeDynamicEntityFields(entity.fields) };
 };
 
 export const createDynamicModuleEntityField = async (

@@ -5,7 +5,7 @@ export const LEAD_FIELD_VISIBILITY_KEY = "ierp.lead-management-field-visibility"
 export interface LeadCustomField {
   id: string;
   label: string;
-  type: "Text / Char" | "Number" | "Date" | "Long Text";
+  type: "Text / Char" | "Number" | "Date" | "Long Text" | "Select" | "Boolean";
   required: boolean;
   module: string;
   screen: string;

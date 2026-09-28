@@ -11,7 +11,13 @@ export {
 export { http, bindAuthSession, unwrapData } from "./requestBuilder";
 export { normalizeError } from "./errorNormalizer";
 export { mockLatency } from "./delay";
-export { createDynamicModuleEntity, getAllModules, getModules, getSettingsModules } from "./modulesApi";
+export {
+  createDynamicModuleEntity,
+  getDynamicModuleEntity,
+  getAllModules,
+  getModules,
+  getSettingsModules,
+} from "./modulesApi";
 export { notifyModulesUpdated } from "./settingsService";
 export { hasRefreshToken, loginRequest, logoutRequest, refreshSessionRequest } from "./authApi";
 export { getDashboardSnapshot } from "./dashboardApi";

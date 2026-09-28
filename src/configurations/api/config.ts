@@ -45,6 +45,7 @@ export const API_ENDPOINTS = {
   },
   dynamicModules: "/api/v1/dynamic_modules",
   dynamicModuleEntities: (moduleId: string) => `/api/v1/dynamic_modules/${moduleId}/entities`,
+  dynamicModuleEntity: (entityId: string) => `/api/v1/dynamic_modules/entities/${entityId}`,
   dynamicModuleEntityFields: (entityId: string) => `/api/v1/dynamic_modules/entities/${entityId}/fields`,
 } as const;
 

@@ -5,7 +5,9 @@ import {
   getAllModules,
   getSettingsModules,
   createDynamicModuleEntity,
+  getDynamicModuleEntity,
   createDynamicModuleEntityField,
+  normalizeDynamicEntityFields,
   MODULES_UPDATED_EVENT,
   type CreateDynamicModuleEntityFieldPayload,
   type DynamicModuleEntityField,
@@ -46,8 +48,8 @@ export const getSettingsScreens = async (
   return unwrapData<MetadataModuleScreen[]>(response.data);
 };
 
-export { createDynamicModuleEntity, getAllModules, getSettingsModules };
-export { createDynamicModuleEntityField };
+export { createDynamicModuleEntity, getDynamicModuleEntity, getAllModules, getSettingsModules };
+export { createDynamicModuleEntityField, normalizeDynamicEntityFields };
 export type { CreateDynamicModuleEntityFieldPayload, DynamicModuleEntityField };
 export { getScreenMetadata };
 

@@ -34,15 +34,23 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MetadataModule, MetadataModuleScreen, ScreenMetadata } from "@/models/metadata/metadata";
+import type {
+  MetadataControlType,
+  MetadataField,
+  MetadataModule,
+  MetadataModuleScreen,
+  ScreenMetadata,
+} from "@/models/metadata/metadata";
 import {
   createDynamicModuleEntity,
   createDynamicModuleEntityField,
   createSettingsModule,
   createSettingsScreen,
   getAllModules,
+  getDynamicModuleEntity,
   getScreenMetadata,
   notifyModulesUpdated,
+  normalizeDynamicEntityFields,
   type CreateDynamicModuleEntityFieldPayload,
 } from "@/configurations/api/settingsService";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
@@ -302,13 +310,64 @@ const mapScreenMetadata = (
 
 const CUSTOM_FIELD_DATA_TYPE_MAP: Record<LeadCustomField["type"], string> = {
   "Text / Char": "string",
+  Select: "string",
   Number: "number",
   Date: "date",
   "Long Text": "text",
+  Boolean: "boolean",
 };
 
 const mapCustomFieldDataType = (type: LeadCustomField["type"]): string =>
   CUSTOM_FIELD_DATA_TYPE_MAP[type] ?? "string";
+
+const mapMetadataFieldType = (dataType: string): LeadCustomField["type"] => {
+  const normalized = (dataType ?? "").toLowerCase();
+
+  switch (normalized) {
+    case "number":
+    case "integer":
+    case "decimal":
+      return "Number";
+    case "date":
+    case "datetime":
+      return "Date";
+    case "text":
+    case "textarea":
+    case "longtext":
+      return "Long Text";
+    case "select":
+    case "lookup":
+      return "Select";
+    case "boolean":
+      return "Boolean";
+    default:
+      return "Text / Char";
+  }
+};
+
+const mapMetadataControlType = (field: Pick<MetadataField, "controlType" | "dataType">): MetadataControlType => {
+  const normalized = (field.controlType ?? field.dataType ?? "").toLowerCase();
+
+  switch (normalized) {
+    case "select":
+    case "lookup":
+      return normalized;
+    case "number":
+    case "integer":
+    case "decimal":
+      return "number";
+    case "date":
+    case "datetime":
+      return "date";
+    case "boolean":
+      return "boolean";
+    case "textarea":
+    case "longtext":
+      return "textarea";
+    default:
+      return "text";
+  }
+};
 
 // Converts a field label such as "Customer Reference" into "customerReference".
 const createFieldKey = (label: string): string =>
@@ -321,11 +380,87 @@ const getSelectedScreenEntity = (
   module: string,
   screen: string,
   availableModules: MetadataModule[],
-): MetadataModuleScreen | undefined =>
-  availableModules.find((item) => item.name === module)?.screens.find((item) => item.name === screen);
+): MetadataModuleScreen | undefined => {
+  const selectedModule = availableModules.find((item) => item.name === module);
+  const selectedScreen = selectedModule?.screens.find((item) => item.name === screen);
+  if (!selectedScreen) {
+    return undefined;
+  }
+  return selectedModule?.source === "dynamic" || selectedScreen.source === "dynamic"
+    ? { ...selectedScreen, source: "dynamic" }
+    : selectedScreen;
+};
+
+const mapDynamicScreenFields = (
+  metadataFields: MetadataField[],
+  module: string,
+  screen: string,
+  sectionsByScreen: Record<string, string[]>,
+  customFields: LeadCustomField[],
+): ArchitectSection[] => {
+  const storedSections =
+    sectionsByScreen[settingsScreenKey(module, screen)] ?? sectionsByScreen[screen] ?? [];
+  const screenCustomFields = customFields.filter(
+    (field) => field.module === module && field.screen === screen,
+  );
+  const visibility = readLeadFieldVisibility();
+  const mappedFields = metadataFields.map((field) => {
+    const cachedField = screenCustomFields.find(
+      (item) =>
+        item.id === field.fieldKey ||
+        createFieldKey(item.label) === field.fieldKey ||
+        item.label.trim().toLowerCase() === field.label.trim().toLowerCase(),
+    );
+    const section =
+      cachedField?.section ?? storedSections[0] ?? "Custom Fields";
+    const type: LeadCustomField["type"] =
+      field.controlType === "select" || field.controlType === "lookup"
+        ? "Select"
+        : field.controlType === "boolean"
+          ? "Boolean"
+          : field.controlType === "textarea"
+            ? "Long Text"
+            : mapMetadataFieldType(field.dataType);
+
+    return {
+      section,
+      field: {
+        label: field.label,
+        id: field.fieldKey,
+        type,
+        required: field.required,
+        visible: visibility[field.fieldKey] ?? true,
+      },
+    };
+  });
+  const sectionTitles = Array.from(
+    new Set([...storedSections, ...mappedFields.map((item) => item.section)]),
+  );
+
+  return sectionTitles.map((title) => ({
+    title,
+    description: "Configured screen fields.",
+    fields: mappedFields
+      .filter((item) => item.section === title)
+      .map((item) => item.field),
+  }));
+};
 
 const getNextDisplayOrder = (sections: ArchitectSection[], sectionTitle: string): number =>
   sections.find((section) => section.title === sectionTitle)?.fields.length ?? 0;
+
+const createUniqueFieldKey = (field: MetadataField, sections: ArchitectSection[]): string => {
+  const existingKeys = new Set(sections.flatMap((section) => section.fields.map((item) => item.id)));
+  const baseKey = createFieldKey(field.fieldKey || field.label) || "field";
+  let fieldKey = baseKey;
+  let suffix = 2;
+
+  while (existingKeys.has(fieldKey)) {
+    fieldKey = `${baseKey}${suffix++}`;
+  }
+
+  return fieldKey;
+};
 
 export const SystemSettingsPage = () => {
   const [activeSection, setActiveSection] = useState("Screen Architect");
@@ -344,7 +479,9 @@ export const SystemSettingsPage = () => {
   );
   const [customFields, setCustomFields] = useState<LeadCustomField[]>(readLeadCustomFields);
   const [customFieldDialogOpen, setCustomFieldDialogOpen] = useState(false);
+  const [importFieldDialogOpen, setImportFieldDialogOpen] = useState(false);
   const [customFieldError, setCustomFieldError] = useState("");
+  const [importFieldError, setImportFieldError] = useState("");
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [screenDialogOpen, setScreenDialogOpen] = useState(false);
   const [moduleName, setModuleName] = useState("");
@@ -364,6 +501,12 @@ export const SystemSettingsPage = () => {
   const [dialogSectionsLoading, setDialogSectionsLoading] = useState(false);
   const [dialogEntity, setDialogEntity] = useState<MetadataModuleScreen | undefined>(undefined);
   const [submittingCustomField, setSubmittingCustomField] = useState(false);
+  const [sourceModule, setSourceModule] = useState("");
+  const [sourceScreen, setSourceScreen] = useState("");
+  const [sourceFields, setSourceFields] = useState<MetadataField[]>([]);
+  const [sourceFieldKey, setSourceFieldKey] = useState("");
+  const [sourceFieldsLoading, setSourceFieldsLoading] = useState(false);
+  const [importedFieldDraft, setImportedFieldDraft] = useState<MetadataField | null>(null);
   const metadataRequestId = useRef(0);
   const dialogSectionsRequestId = useRef(0);
   const dispatch = useAppDispatch();
@@ -378,19 +521,53 @@ export const SystemSettingsPage = () => {
         sectionsByScreen,
         customFields,
       );
-      setFields(fallbackFields);
 
       if (moduleName === "CRM & Customer Engagement" && screenName === "Lead Management") {
+        setFields(fallbackFields);
         return;
       }
 
-      const selectedModule = availableModules.find((item) => item.name === moduleName);
-      const selectedScreen = selectedModule?.screens.find((item) => item.name === screenName);
+      const selectedScreen = getSelectedScreenEntity(moduleName, screenName, availableModules);
+      if (selectedScreen?.source === "dynamic") {
+        const requestId = ++metadataRequestId.current;
+        setModulesLoading(true);
+        try {
+          const entity = await getDynamicModuleEntity(selectedScreen.id);
+          if (requestId !== metadataRequestId.current) {
+            return;
+          }
+          setFields(
+            mapDynamicScreenFields(
+              entity.fields,
+              moduleName,
+              screenName,
+              sectionsByScreen,
+              customFields,
+            ),
+          );
+        } catch (cause) {
+          if (requestId === metadataRequestId.current) {
+            dispatch(
+              toastShown({
+                message: `Failed to load dynamic screen fields. ${getErrorMessage(cause)}`,
+                severity: "error",
+              }),
+            );
+          }
+        } finally {
+          if (requestId === metadataRequestId.current) {
+            setModulesLoading(false);
+          }
+        }
+        return;
+      }
       const screenCode = selectedScreen?.code;
       if (!screenCode) {
+        setFields(fallbackFields);
         return;
       }
 
+      setFields(fallbackFields);
       const requestId = ++metadataRequestId.current;
       setModulesLoading(true);
       try {
@@ -427,6 +604,33 @@ export const SystemSettingsPage = () => {
       if (moduleName === "CRM & Customer Engagement" && screenName === "Lead Management") {
         return;
       }
+      if (entity?.source === "dynamic") {
+        const requestId = ++dialogSectionsRequestId.current;
+        setDialogSectionsLoading(true);
+        try {
+          const refreshedEntity = await getDynamicModuleEntity(entity.id);
+          if (requestId === dialogSectionsRequestId.current) {
+            setDialogSections(
+              mapDynamicScreenFields(
+                refreshedEntity.fields,
+                moduleName,
+                screenName,
+                sectionsByScreen,
+                customFields,
+              ),
+            );
+          }
+        } catch {
+          if (requestId === dialogSectionsRequestId.current) {
+            setDialogSections(fallbackFields.map((section) => ({ ...section, fields: [] })));
+          }
+        } finally {
+          if (requestId === dialogSectionsRequestId.current) {
+            setDialogSectionsLoading(false);
+          }
+        }
+        return;
+      }
       if (!entity?.code) {
         return;
       }
@@ -452,6 +656,35 @@ export const SystemSettingsPage = () => {
       }
     },
     [backendModules, customFields, sectionsByScreen],
+  );
+
+  const loadSourceFields = useCallback(
+    async (moduleName: string, screenName: string) => {
+      const sourceEntity = getSelectedScreenEntity(moduleName, screenName, backendModules);
+      setSourceFields([]);
+      setSourceFieldKey("");
+      setSourceFieldsLoading(true);
+      setImportFieldError("");
+      try {
+        if (sourceEntity?.source === "dynamic") {
+          const entity = await getDynamicModuleEntity(sourceEntity.id);
+          setSourceFields(entity.fields);
+          return;
+        }
+        if (!sourceEntity?.code) {
+          throw new Error("Unable to load fields for the selected source screen.");
+        }
+        const metadata = await getScreenMetadata(sourceEntity.code);
+        setSourceFields(metadata.sections.flatMap((section) => section.fields));
+      } catch (cause) {
+        const message = `Failed to load source fields. ${getErrorMessage(cause)}`;
+        setImportFieldError(message);
+        dispatch(toastShown({ message, severity: "error" }));
+      } finally {
+        setSourceFieldsLoading(false);
+      }
+    },
+    [backendModules, dispatch],
   );
 
   useEffect(() => {
@@ -783,6 +1016,25 @@ export const SystemSettingsPage = () => {
       customFieldDraft.section === "__new__" ? newSectionName.trim() : customFieldDraft.section;
     if (!section) return;
 
+    const importedType = importedFieldDraft
+      ? mapMetadataFieldType(importedFieldDraft.controlType || importedFieldDraft.dataType || "text")
+      : undefined;
+    const preserveImportedMetadata = Boolean(importedFieldDraft && customFieldDraft.type === importedType);
+    if (importedFieldDraft) {
+      const targetFields = dialogSections.find((item) => item.title === section)?.fields ?? [];
+      const duplicate = targetFields.some(
+        (field) =>
+          field.id === importedFieldDraft.fieldKey ||
+          field.label.trim().toLowerCase() === label.toLowerCase(),
+      );
+      if (duplicate) {
+        const message = `"${label}" is already in ${section}.`;
+        setCustomFieldError(message);
+        dispatch(toastShown({ message, severity: "warning" }));
+        return;
+      }
+    }
+
     const entity = dialogEntity;
     if (!entity?.id) {
       const message = "Unable to resolve the screen entity for this field. Please try again.";
@@ -791,17 +1043,35 @@ export const SystemSettingsPage = () => {
       return;
     }
 
+    const importKey = createFieldKey(label);
     const payload: CreateDynamicModuleEntityFieldPayload = {
-      fieldKey: createFieldKey(label),
+      fieldKey: importedFieldDraft
+        ? createUniqueFieldKey(
+            { ...importedFieldDraft, fieldKey: importKey, label },
+            dialogSections,
+          )
+        : importKey,
       label,
-      dataType: mapCustomFieldDataType(customFieldDraft.type),
+      dataType:
+        importedFieldDraft && preserveImportedMetadata
+          ? importedFieldDraft.dataType || mapCustomFieldDataType(customFieldDraft.type)
+          : mapCustomFieldDataType(customFieldDraft.type),
+      ...(importedFieldDraft && preserveImportedMetadata
+        ? {
+            controlType: mapMetadataControlType(importedFieldDraft),
+            options: importedFieldDraft.options?.map((option) => ({
+              value: option.value,
+              label: option.label,
+            })),
+          }
+        : {}),
       displayOrder: getNextDisplayOrder(dialogSections, section),
       isRequired: customFieldDraft.required,
     };
 
     setSubmittingCustomField(true);
     try {
-      await createDynamicModuleEntityField(entity.id, payload);
+      const createdField = await createDynamicModuleEntityField(entity.id, payload);
 
       const sectionKey = settingsScreenKey(customFieldDraft.module, customFieldDraft.screen);
       const existingSections =
@@ -812,13 +1082,39 @@ export const SystemSettingsPage = () => {
       };
       setSectionsByScreen(nextSections);
       saveSectionsByScreen(nextSections);
-      const field = { ...customFieldDraft, section, id: `custom_${Date.now()}`, label };
+      const field = {
+        ...customFieldDraft,
+        section,
+        id: importedFieldDraft ? payload.fieldKey : `custom_${Date.now()}`,
+        label,
+      };
       const nextCustomFields = [...customFields, field];
       setCustomFields(nextCustomFields);
       saveLeadCustomFields(nextCustomFields);
       if (field.module === activeModule && field.screen === activeScreen) {
         if (activeModule === "CRM & Customer Engagement" && activeScreen === "Lead Management") {
           setFields(buildFieldsForScreen(activeModule, activeScreen, nextSections, nextCustomFields));
+        } else if (entity.source === "dynamic") {
+          let backendFields: MetadataField[];
+          try {
+            const refreshedEntity = await getDynamicModuleEntity(entity.id);
+            backendFields = refreshedEntity.fields;
+          } catch {
+            backendFields = entity.fields ?? [];
+          }
+          const createdMetadataFields = normalizeDynamicEntityFields([createdField]);
+          if (!backendFields.some((item) => item.fieldKey === createdField.fieldKey)) {
+            backendFields = [...backendFields, ...createdMetadataFields];
+          }
+          setFields(
+            mapDynamicScreenFields(
+              backendFields,
+              customFieldDraft.module,
+              customFieldDraft.screen,
+              nextSections,
+              nextCustomFields,
+            ),
+          );
         } else {
           await loadScreenFields(activeModule, activeScreen);
         }
@@ -832,6 +1128,7 @@ export const SystemSettingsPage = () => {
         section: "Additional Information",
       });
       setNewSectionName("");
+      setImportedFieldDraft(null);
       setCustomFieldError("");
       setCustomFieldDialogOpen(false);
       dispatch(toastShown({ message: "Custom field added successfully.", severity: "success" }));
@@ -845,6 +1142,76 @@ export const SystemSettingsPage = () => {
     } finally {
       setSubmittingCustomField(false);
     }
+  };
+
+  const openAddCustomFieldDialog = () => {
+    const availableScreens = screensByModule[activeModule] ?? [];
+    if (!availableScreens.length) {
+      dispatch(
+        toastShown({
+          message: "No screens are configured for this module. Please add a screen before creating a custom field.",
+          severity: "error",
+        }),
+      );
+      return;
+    }
+
+    const screen = availableScreens.includes(activeScreen) ? activeScreen : availableScreens[0];
+    setCustomFieldModule(activeModule);
+    setCustomFieldError("");
+    setImportFieldError("");
+    setCustomFieldDraft((current) => ({ ...current, module: activeModule, screen }));
+    void loadDialogSections(activeModule, screen);
+    setCustomFieldDialogOpen(true);
+  };
+
+  const openImportFieldDialog = () => {
+    const targetScreen = customFieldDraft.screen;
+    setSourceModule(customFieldDraft.module);
+    setSourceScreen(targetScreen);
+    setSourceFields([]);
+    setSourceFieldKey("");
+    setImportFieldError("");
+    void loadDialogSections(customFieldDraft.module, targetScreen);
+    void loadSourceFields(customFieldDraft.module, targetScreen);
+    setImportFieldDialogOpen(true);
+  };
+
+  const importExistingField = () => {
+    if (!modules.includes(sourceModule)) {
+      setImportFieldError("Please select a valid source module.");
+      return;
+    }
+    if (!(screensByModule[sourceModule] ?? []).includes(sourceScreen)) {
+      setImportFieldError("Please select a valid source screen.");
+      return;
+    }
+    const sourceField = sourceFields.find((field) => field.fieldKey === sourceFieldKey);
+    if (!sourceField) {
+      setImportFieldError("Please select a source field.");
+      return;
+    }
+    const targetSection =
+      customFieldDraft.section === "__new__" ? newSectionName.trim() : customFieldDraft.section;
+    if (!targetSection) {
+      setImportFieldError("Please select a section in Add Custom Field.");
+      return;
+    }
+    if (dialogSectionsLoading || sourceFieldsLoading) {
+      return;
+    }
+
+    setImportedFieldDraft(sourceField);
+    setCustomFieldDraft((current) => ({
+      ...current,
+      label: sourceField.label,
+      type: mapMetadataFieldType(sourceField.controlType || sourceField.dataType || "text"),
+      required: sourceField.required,
+      section: targetSection,
+    }));
+    setImportFieldError("");
+    setImportFieldDialogOpen(false);
+    setCustomFieldDialogOpen(true);
   };
 
   return (
@@ -934,31 +1301,7 @@ export const SystemSettingsPage = () => {
                 onReorder={reorderFields}
                 onSave={commitOrder}
                 onRevert={revertOrder}
-                onAddCustomField={() => {
-                  const availableScreens = screensByModule[activeModule] ?? [];
-                  if (!availableScreens.length) {
-                    dispatch(
-                      toastShown({
-                        message:
-                          "No screens are configured for this module. Please add a screen before creating a custom field.",
-                        severity: "error",
-                      }),
-                    );
-                    return;
-                  }
-                  setCustomFieldModule(activeModule);
-                  const screen = availableScreens.includes(activeScreen)
-                    ? activeScreen
-                    : availableScreens[0];
-                  setCustomFieldError("");
-                  setCustomFieldDraft((current) => ({
-                    ...current,
-                    module: activeModule,
-                    screen,
-                  }));
-                  void loadDialogSections(activeModule, screen);
-                  setCustomFieldDialogOpen(true);
-                }}
+                onAddCustomField={openAddCustomFieldDialog}
                 onAddModule={() => setModuleDialogOpen(true)}
                 onAddScreen={() => setScreenDialogOpen(true)}
                 modules={modules}
@@ -1138,11 +1481,30 @@ export const SystemSettingsPage = () => {
                   {section.title}
                 </MenuItem>
               ))}
+              {newSectionName.trim() &&
+              !dialogSections.some((section) => section.title === newSectionName.trim()) ? (
+                <MenuItem key={newSectionName.trim()} value={newSectionName.trim()}>
+                  {newSectionName.trim()}
+                </MenuItem>
+              ) : null}
               <MenuItem value="__new__">Add new section</MenuItem>
             </TextField>
             {customFieldDraft.section === "__new__" ? (
               <TextField label="New section name" value={newSectionName} onChange={(event) => setNewSectionName(event.target.value)} fullWidth />
             ) : null}
+            <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                Field label
+              </Typography>
+              <Button
+                size="small"
+                variant="text"
+                onClick={openImportFieldDialog}
+                sx={{ minWidth: 0, px: 0.75, py: 0.5, fontSize: "0.7rem", textTransform: "none" }}
+              >
+                Import field
+              </Button>
+            </Stack>
             <TextField
               autoFocus
               label="Field label"
@@ -1200,7 +1562,13 @@ export const SystemSettingsPage = () => {
                 },
               }}
             >
-              {(["Text / Char", "Number", "Date", "Long Text"] as const).map((type) => (
+              {Array.from(new Set<LeadCustomField["type"]>([
+                "Text / Char",
+                "Number",
+                "Date",
+                "Long Text",
+                customFieldDraft.type,
+              ])).map((type) => (
                 <MenuItem key={type} value={type}>
                   {type}
                 </MenuItem>
@@ -1237,6 +1605,79 @@ export const SystemSettingsPage = () => {
             }}
           >
             Add field
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={importFieldDialogOpen}
+        onClose={() => setImportFieldDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { m: { xs: 1.5, sm: 2 }, width: { xs: "calc(100% - 24px)", sm: "100%" }, borderRadius: 2.5 } }}
+      >
+        <DialogTitle sx={{ px: { xs: 2, sm: 3 } }}>Import Existing Field</DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
+          <Stack gap={2} sx={{ pt: 1 }}>
+            <TextField
+              select
+              label="Source Module"
+              value={sourceModule}
+              onChange={(event) => {
+                const module = event.target.value;
+                const screen = (screensByModule[module] ?? [])[0] ?? "";
+                setSourceModule(module);
+                setSourceScreen(screen);
+                if (screen) {
+                  void loadSourceFields(module, screen);
+                } else {
+                  setSourceFields([]);
+                  setSourceFieldKey("");
+                }
+              }}
+              fullWidth
+              error={Boolean(importFieldError)}
+              helperText={importFieldError || undefined}
+            >
+              {modules.map((module) => <MenuItem key={module} value={module}>{module}</MenuItem>)}
+            </TextField>
+            <TextField
+              select
+              label="Source Screen"
+              value={sourceScreen}
+              onChange={(event) => {
+                const screen = event.target.value;
+                setSourceScreen(screen);
+                void loadSourceFields(sourceModule, screen);
+              }}
+              fullWidth
+              disabled={!sourceModule || sourceFieldsLoading}
+            >
+              {(screensByModule[sourceModule] ?? []).map((screen) => <MenuItem key={screen} value={screen}>{screen}</MenuItem>)}
+            </TextField>
+            <TextField
+              select
+              label="Source Field"
+              value={sourceFieldKey}
+              onChange={(event) => {
+                const nextKey = event.target.value;
+                setSourceFieldKey(nextKey);
+              }}
+              fullWidth
+              disabled={sourceFieldsLoading || !sourceScreen || sourceFields.length === 0}
+              helperText={sourceFieldsLoading ? "Loading existing fields..." : sourceScreen && sourceFields.length === 0 ? "No fields are configured for this screen." : undefined}
+            >
+              {sourceFields.map((field) => <MenuItem key={field.fieldKey} value={field.fieldKey}>{field.label}</MenuItem>)}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, gap: 1, "& .MuiButton-root": { minHeight: 40 } }}>
+          <Button onClick={() => setImportFieldDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={importExistingField}
+            disabled={!sourceFieldKey || sourceFieldsLoading || dialogSectionsLoading}
+          >
+            Import field
           </Button>
         </DialogActions>
       </Dialog>

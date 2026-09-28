@@ -75,6 +75,8 @@ export interface MetadataModuleScreen {
   entityName: string;
   apiBasePath: string;
   moduleId?: string;
+  source?: "dynamic";
+  fields?: MetadataField[];
 }
 
 export interface MetadataModule {
