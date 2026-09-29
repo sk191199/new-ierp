@@ -1,7 +1,5 @@
 import AddIcon from "@mui/icons-material/Add";
 import BoltIcon from "@mui/icons-material/Bolt";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -33,7 +31,6 @@ import { SelectField } from "@/components/forms/fields";
 import { DataTable } from "@/components/tables/DataTable/DataTable";
 import { PERMISSIONS } from "@/constants/permissions";
 import { ROUTES } from "@/constants/routes";
-import { type LeadStatus } from "@/constants/statuses";
 import { useTableState } from "@/hooks/useTableState";
 import type { Lead } from "@/models/lead/lead";
 import {
@@ -45,15 +42,12 @@ import type { KpiMetric } from "@/models/dashboard/dashboard";
 import { toastShown } from "@/redux/features/ui/uiSlice";
 import { useAppDispatch } from "@/redux/hooks";
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
-import { isBlank, isValidEmail } from "@/utils/validators/required";
-import { InlineSelectField, InlineTextField } from "./InlineLeadField";
-import { getStatusTone, leadSourceOptions, leadStatusOptions } from "./leadOptions";
+import { getStatusTone } from "./leadOptions";
 import {
   deleteLead,
   getAllMockLeads,
   getLeadKpis,
   listLeads,
-  saveLead,
 } from "@/configurations/api/leadsApi";
 
 const buildKpis = (items: Lead[]): KpiMetric[] => {
@@ -104,9 +98,6 @@ export const LeadsPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Lead | null>(null);
   const [kpis, setKpis] = useState<KpiMetric[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Lead | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const sorting = useMemo<SortingState>(
     () =>
@@ -151,92 +142,6 @@ export const LeadsPage = () => {
     .filter((lead) => lead.leadScore >= 80)
     .sort((left, right) => right.leadScore - left.leadScore)[0];
 
-  const patchDraft = (key: keyof Lead, value: string | number) => {
-    setDraft((current) => {
-      if (!current) {
-        return current;
-      }
-
-      const next = {
-        ...current,
-        [key]: value,
-      };
-
-      if (key === "status") {
-        next.confidence = resolveLeadConfidence(
-          Number(next.leadScore),
-          next.status,
-        );
-
-        next.aiNextAction = resolveAiNextAction(Number(next.leadScore));
-      }
-
-      return next;
-    });
-  };
-
-  const beginInlineEdit = (row: Lead) => {
-    setEditingId(row.id);
-    setDraft({ ...row });
-  };
-
-  const cancelInlineEdit = () => {
-    setEditingId(null);
-    setDraft(null);
-  };
-
-  const commitInlineEdit = async () => {
-    if (!draft) {
-      return;
-    }
-
-    if (
-      isBlank(draft.leadName) ||
-      isBlank(draft.companyName) ||
-      isBlank(draft.phone) ||
-      !isValidEmail(draft.email)
-    ) {
-      dispatch(
-        toastShown({
-          message: "Name, company, phone and a valid email are required.",
-          severity: "warning",
-        }),
-      );
-
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const saved = await saveLead(draft);
-
-      setRows((current) =>
-        current.map((row) => (row.id === saved.id ? saved : row)),
-      );
-
-      cancelInlineEdit();
-
-      dispatch(
-        toastShown({
-          message: `${saved.leadId} updated.`,
-          severity: "success",
-        }),
-      );
-
-      setKpis(buildKpis(getAllMockLeads()));
-    } catch (cause) {
-      dispatch(
-        toastShown({
-          message: getErrorMessage(cause),
-          severity: "error",
-        }),
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const announceAction = useCallback(
     (action: string, lead: Lead) => {
       dispatch(
@@ -269,68 +174,32 @@ export const LeadsPage = () => {
         header: "Lead Name",
         size: 132,
         minSize: 92,
-        cell: ({ row, getValue }) =>
-          editingId === row.original.id && draft ? (
-            <InlineTextField
-              ariaLabel="Lead name"
-              value={draft.leadName}
-              onChange={(value) => patchDraft("leadName", value)}
-            />
-          ) : (
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {String(getValue())}
-            </Typography>
-          ),
+        cell: ({ getValue }) => (
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {String(getValue())}
+          </Typography>
+        ),
       },
       {
         accessorKey: "companyName",
         header: "Company",
         size: 142,
         minSize: 100,
-        cell: ({ row, getValue }) =>
-          editingId === row.original.id && draft ? (
-            <InlineTextField
-              ariaLabel="Company"
-              value={draft.companyName}
-              onChange={(value) => patchDraft("companyName", value)}
-            />
-          ) : (
-            String(getValue())
-          ),
+        cell: ({ getValue }) => String(getValue()),
       },
       {
         accessorKey: "leadSource",
         header: "Lead Source",
         size: 100,
         minSize: 84,
-        cell: ({ row, getValue }) =>
-          editingId === row.original.id && draft ? (
-            <InlineSelectField
-              ariaLabel="Lead source"
-              value={draft.leadSource}
-              onChange={(value) => patchDraft("leadSource", value)}
-              options={leadSourceOptions}
-            />
-          ) : (
-            String(getValue())
-          ),
+        cell: ({ getValue }) => String(getValue()),
       },
       {
         accessorKey: "status",
         header: "Status",
         size: 96,
         minSize: 82,
-        cell: ({ row, getValue }) =>
-          editingId === row.original.id && draft ? (
-            <InlineSelectField
-              ariaLabel="Status"
-              value={draft.status}
-              onChange={(value) =>
-                patchDraft("status", value as LeadStatus)
-              }
-              options={leadStatusOptions}
-            />
-          ) : (
+        cell: ({ getValue }) => (
             <Chip
               label={String(getValue())}
               color={getStatusTone(String(getValue())) as any}
@@ -343,7 +212,7 @@ export const LeadsPage = () => {
                 letterSpacing: "normal",
               }}
             />
-          ),
+        ),
       },
       {
         id: "confidence",
@@ -414,7 +283,7 @@ export const LeadsPage = () => {
         ),
       },
     ],
-    [announceAction, draft, editingId],
+    [announceAction],
   );
 
   return (
@@ -556,7 +425,6 @@ export const LeadsPage = () => {
         }}
         paginationStyle="count"
         revealActionsOnHover
-        alwaysRevealActions={(row) => row.id === editingId}
         searchPlaceholder="Search records..."
         onSearchChange={tableState.setSearch}
         onPageChange={tableState.setPage}
@@ -619,33 +487,7 @@ export const LeadsPage = () => {
             />
           </FilterPanel>
         }
-        rowActions={(row) =>
-          editingId === row.id ? (
-            <Stack direction="row">
-              <Tooltip title="Save">
-                <IconButton
-                  aria-label={`Save ${row.leadId}`}
-                  size="small"
-                  color="primary"
-                  disabled={saving}
-                  onClick={() => void commitInlineEdit()}
-                >
-                  <CheckIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="Cancel">
-                <IconButton
-                  aria-label="Cancel inline edit"
-                  size="small"
-                  disabled={saving}
-                  onClick={cancelInlineEdit}
-                >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-          ) : (
+        rowActions={(row) => (
             <Box
               sx={{
                 position: "relative",
@@ -689,11 +531,11 @@ export const LeadsPage = () => {
                 <PermissionGate
                   permission={PERMISSIONS.crm.leads.update}
                 >
-                  <Tooltip title="Edit inline">
+                  <Tooltip title="Edit">
                     <IconButton
                       aria-label={`Edit ${row.leadId}`}
                       size="small"
-                      onClick={() => beginInlineEdit(row)}
+                      onClick={() => navigate(ROUTES.crm.leadEdit(row.id))}
                     >
                       <EditOutlinedIcon fontSize="small" />
                     </IconButton>
@@ -737,8 +579,7 @@ export const LeadsPage = () => {
                 </PermissionGate>
               </Stack>
             </Box>
-          )
-        }
+        )}
       />
 
       <ConfirmDialog
@@ -763,10 +604,6 @@ export const LeadsPage = () => {
               );
 
               setPendingDelete(null);
-
-              if (editingId === pendingDelete.id) {
-                cancelInlineEdit();
-              }
 
               void load();
             })
