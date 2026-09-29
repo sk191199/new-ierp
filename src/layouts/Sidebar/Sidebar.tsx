@@ -2,8 +2,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { Avatar, Box, Button, List, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useEffect, useState } from "react";
-import { getModules } from "@/configurations/api/modulesApi";
-import { MODULES_UPDATED_EVENT } from "@/configurations/api/modulesApi";
+import { getCachedMetadataModules, MODULES_UPDATED_EVENT } from "@/configurations/api/modulesApi";
 import { selectCurrentUser, selectIsAuthenticated } from "@/redux/features/auth/authSelectors";
 import { useAppSelector } from "@/redux/hooks";
 import {
@@ -22,43 +21,49 @@ interface SidebarProps {
 export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
   const user = useAppSelector(selectCurrentUser);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const moduleCacheKey = user ? `${user.tenantId}:${user.id}` : null;
   const [items, setItems] = useState(() => [...navigationItems(), ...systemSettingsNavigationItems()]);
 
   useEffect(() => {
     let active = true;
+    let latestRequestId = 0;
 
-    const loadModules = () => {
-      if (!isAuthenticated) {
+    const loadModules = (forceRefresh = false) => {
+      if (!isAuthenticated || !moduleCacheKey) {
         return;
       }
 
-      void getModules()
-      .then((modules) => {
-        if (active) {
-          const dynamicItems = navigationItemsFromModules(modules).filter(
-            (item) => item.label.toLowerCase() !== "sales",
-          );
-          setItems([
-            ...navigationItems(),
-            ...dynamicItems,
-            ...salesNavigationItems(),
-            ...systemSettingsNavigationItems(),
-          ]);
-        }
-      })
-      .catch((error: unknown) => {
-        console.error("Failed to load sidebar modules.", error);
-      });
+      const requestId = ++latestRequestId;
+      void getCachedMetadataModules(moduleCacheKey, forceRefresh)
+        .then((modules) => {
+          if (active && requestId === latestRequestId) {
+            const dynamicItems = navigationItemsFromModules(modules).filter(
+              (item) => item.label.toLowerCase() !== "sales",
+            );
+            setItems([
+              ...navigationItems(),
+              ...dynamicItems,
+              ...salesNavigationItems(),
+              ...systemSettingsNavigationItems(),
+            ]);
+          }
+        })
+        .catch((error: unknown) => {
+          if (active && requestId === latestRequestId) {
+            console.error("Failed to load sidebar modules.", error);
+          }
+        });
     };
 
     void loadModules();
-    window.addEventListener(MODULES_UPDATED_EVENT, loadModules);
+    const handleModulesUpdated = () => loadModules(true);
+    window.addEventListener(MODULES_UPDATED_EVENT, handleModulesUpdated);
 
     return () => {
       active = false;
-      window.removeEventListener(MODULES_UPDATED_EVENT, loadModules);
+      window.removeEventListener(MODULES_UPDATED_EVENT, handleModulesUpdated);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, moduleCacheKey]);
 
   return (
     <Box

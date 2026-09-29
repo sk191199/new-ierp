@@ -83,6 +83,41 @@ export const getModules = async (): Promise<MetadataModule[]> => {
   return unwrapData<MetadataModule[]>(response.data);
 };
 
+const metadataModulesCache = new Map<string, MetadataModule[]>();
+const metadataModulesRequests = new Map<string, Promise<MetadataModule[]>>();
+
+export const getCachedMetadataModules = (
+  cacheKey: string,
+  forceRefresh = false,
+): Promise<MetadataModule[]> => {
+  if (!forceRefresh) {
+    const cachedModules = metadataModulesCache.get(cacheKey);
+    if (cachedModules) {
+      return Promise.resolve(cachedModules);
+    }
+
+    const pendingRequest = metadataModulesRequests.get(cacheKey);
+    if (pendingRequest) {
+      return pendingRequest;
+    }
+  }
+
+  const request = getModules()
+    .then((modules) => {
+      if (metadataModulesRequests.get(cacheKey) === request) {
+        metadataModulesCache.set(cacheKey, modules);
+      }
+      return modules;
+    })
+    .finally(() => {
+      if (metadataModulesRequests.get(cacheKey) === request) {
+        metadataModulesRequests.delete(cacheKey);
+      }
+    });
+  metadataModulesRequests.set(cacheKey, request);
+  return request;
+};
+
 export const getSettingsModules = getModules;
 
 const normalizeKey = (value: string): string => settingsSlug(value);
