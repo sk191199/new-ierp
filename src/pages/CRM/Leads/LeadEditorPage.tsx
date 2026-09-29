@@ -148,8 +148,17 @@ export const LeadEditorPage = ({ mode }: LeadEditorPageProps) => {
   const save = async () => {
     setSubmitting(true);
     try {
-      const saved = mode === "create" ? await createLead(draft) : await updateLead(id ?? "", draft);
-      dispatch(toastShown({ message: `${saved.leadId} saved.`, severity: "success" }));
+      if (mode === "create") {
+        await createLead(draft);
+      } else {
+        await updateLead(id ?? "", draft);
+      }
+      dispatch(
+        toastShown({
+          message: mode === "create" ? "Lead created successfully" : "Lead updated successfully",
+          severity: "success",
+        }),
+      );
       navigate(ROUTES.crm.leads);
     } catch (cause) {
       dispatch(toastShown({ message: getErrorMessage(cause), severity: "error" }));

@@ -36,7 +36,6 @@ import type { Lead } from "@/models/lead/lead";
 import {
   formatLeadDisplayId,
   resolveAiNextAction,
-  resolveLeadConfidence,
 } from "@/models/lead/lead";
 import type { KpiMetric } from "@/models/dashboard/dashboard";
 import { toastShown } from "@/redux/features/ui/uiSlice";
@@ -82,6 +81,35 @@ const buildKpis = (items: Lead[]): KpiMetric[] => {
 };
 
 export const LeadsPage = () => {
+const getLeadConfidenceByStatus = (status: string): number => {
+  switch (status) {
+    case "New":
+      return 20;
+    case "Qualified":
+      return 50;
+    case "Disqualified":
+      return 0;
+    case "Converted":
+      return 100;
+    default:
+      return 0;
+  }
+};
+
+const getLeadConfidenceColor = (status: string): string => {
+  switch (status) {
+    case "New":
+      return "warning.main";
+    case "Qualified":
+      return "info.main";
+    case "Disqualified":
+      return "error.main";
+    case "Converted":
+      return "success.main";
+    default:
+      return "warning.main";
+  }
+};
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -219,11 +247,10 @@ export const LeadsPage = () => {
         header: "Confidence",
         size: 122,
         minSize: 104,
-        accessorFn: (row) =>
-          row.confidence ??
-          resolveLeadConfidence(row.leadScore, row.status),
-        cell: ({ getValue }) => {
+        accessorFn: (row) => getLeadConfidenceByStatus(row.status),
+        cell: ({ getValue, row }) => {
           const value = Number(getValue());
+          const color = getLeadConfidenceColor(row.original.status);
 
           return (
             <Stack
@@ -240,8 +267,7 @@ export const LeadsPage = () => {
                   flexShrink: 0,
                   height: 4,
                   "& .MuiLinearProgress-bar": {
-                    bgcolor:
-                      value >= 80 ? "success.main" : "warning.main",
+                    bgcolor: color,
                   },
                 }}
               />
