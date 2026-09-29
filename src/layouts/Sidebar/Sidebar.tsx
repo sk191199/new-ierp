@@ -2,7 +2,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { Avatar, Box, Button, List, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { useEffect, useState } from "react";
-import { getAllModules } from "@/configurations/api/modulesApi";
+import { getModules } from "@/configurations/api/modulesApi";
 import { MODULES_UPDATED_EVENT } from "@/configurations/api/modulesApi";
 import { selectCurrentUser, selectIsAuthenticated } from "@/redux/features/auth/authSelectors";
 import { useAppSelector } from "@/redux/hooks";
@@ -32,7 +32,7 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
         return;
       }
 
-      void getAllModules()
+      void getModules()
       .then((modules) => {
         if (active) {
           const dynamicItems = navigationItemsFromModules(modules).filter(
