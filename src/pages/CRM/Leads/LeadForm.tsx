@@ -156,6 +156,12 @@ export const LeadForm = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (mode === "create" && value.status !== "New") {
+      onChange({ ...value, status: "New" });
+    }
+  }, [mode, onChange, value]);
+
   // ============================================================
   // DIALOG STATES
   // ============================================================
@@ -566,13 +572,23 @@ export const LeadForm = ({
                 includeEmpty
               />
 
-              <SelectField
-                name="status"
-                label="Status"
-                value={value.status}
-                onChange={(next) => patch("status", next as LeadStatus)}
-                options={leadStatusOptions}
-              />
+              {mode === "create" ? (
+                <TextFieldControl
+                  name="status"
+                  label="Status"
+                  value="New"
+                  readOnly
+                  onChange={() => {}}
+                />
+              ) : (
+                <SelectField
+                  name="status"
+                  label="Status"
+                  value={value.status}
+                  onChange={(next) => patch("status", next as LeadStatus)}
+                  options={leadStatusOptions}
+                />
+              )}
 
               <SelectField
                 name="assignedTo"
