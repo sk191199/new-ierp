@@ -1,6 +1,7 @@
 import AddIcon from "@mui/icons-material/Add";
 
 import {
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -8,20 +9,14 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
   FormControlLabel,
-  FormHelperText,
   IconButton,
-  InputLabel,
   MenuItem,
-  Select,
   Stack,
   Switch,
   TextField,
   Tooltip,
 } from "@mui/material";
-
-import type { SelectChangeEvent } from "@mui/material/Select";
 
 import { Children, isValidElement, useState, type ReactNode } from "react";
 import type { Theme } from "@mui/material/styles";
@@ -299,110 +294,98 @@ export const SelectField = ({
   includeEmpty,
   emptyLabel = "Select",
 }: SelectFieldProps) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const hasEmptyOption =
     Boolean(includeEmpty) ||
     options.some((option) => option.value === "");
-
-  const shrink = Boolean(value) || hasEmptyOption;
+  const selectOptions =
+    includeEmpty && !options.some((option) => option.value === "")
+      ? [{ value: "", label: emptyLabel }, ...options]
+      : options;
+  const selectedOption = selectOptions.find((option) => option.value === value) ?? null;
+  const filteredOptions = selectOptions.filter((option) => {
+    const query = search.trim().toLowerCase();
+    return !query || option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query);
+  });
 
   return (
-    <FormControl
+    <Autocomplete
+      id={name}
       fullWidth
-      size="small"
-      required={required}
-      disabled={disabled}
-      error={Boolean(error)}
-      sx={fieldControlSx}
-    >
-      {/* ======================================================
-          SELECT LABEL
-          ====================================================== */}
-
-      <InputLabel
-        id={`${name}-label`}
-        shrink={shrink}
-        sx={fieldLabelSx}
-      >
-        {label}
-      </InputLabel>
-
-      {/* ======================================================
-          SELECT
-          ====================================================== */}
-
-      <Select
-        labelId={`${name}-label`}
-        name={name}
-        data-field-key={name}
-        label={label}
-        value={value}
-        displayEmpty={hasEmptyOption}
-        notched={shrink}
-        onChange={(event: SelectChangeEvent<string>) =>
-          onChange(event.target.value)
+      options={selectOptions}
+      value={selectedOption}
+      inputValue={open ? search : selectedOption?.label ?? ""}
+      open={open}
+      onOpen={() => {
+        setSearch("");
+        setOpen(true);
+      }}
+      onClose={() => setOpen(false)}
+      onInputChange={(_, next, reason) => {
+        if (reason === "input") {
+          setSearch(next);
+          if (!open) setOpen(true);
+        } else if (reason === "clear") {
+          setSearch("");
         }
-        sx={fieldInputSx}
-        renderValue={(selected) => {
-          const match = options.find(
-            (option) => option.value === selected
-          )?.label;
-
-          if (match) {
-            return match;
-          }
-
-          if (hasEmptyOption) {
-            return (
-              <Box
-                component="span"
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "0.75rem",
-                  fontWeight: 400,
-                  textTransform: "uppercase",
-                  color: "text.disabled",
-                }}
-              >
-                {emptyLabel}
-              </Box>
-            );
-          }
-
-          return "";
-        }}
-      >
-        {/* Empty option */}
-
-        {includeEmpty ? (
-          <MenuItem
-            value=""
-            sx={menuItemSx}
-          >
-            <em>{emptyLabel}</em>
-          </MenuItem>
-        ) : null}
-
-        {/* Options */}
-
-        {options.map((option) => (
-          <MenuItem
-            key={option.value}
-            value={option.value}
-            sx={menuItemSx}
-          >
-            {option.label}
-          </MenuItem>
-        ))}
-      </Select>
-
-      {/* Error */}
-
-      {error ? (
-        <FormHelperText sx={fieldHelperTextSx}>
-          {error}
-        </FormHelperText>
-      ) : null}
-    </FormControl>
+      }}
+      disabled={disabled}
+      noOptionsText="No options found"
+      filterOptions={() => filteredOptions}
+      getOptionLabel={(option) => option.label}
+      isOptionEqualToValue={(option, selected) => option.value === selected.value}
+      onChange={(_, selected, reason) => {
+        if (reason === "clear") return;
+        onChange(selected?.value ?? "");
+        setSearch("");
+        setOpen(false);
+      }}
+      renderOption={(props, option) => (
+        <MenuItem {...props} sx={menuItemSx}>
+          {option.label}
+        </MenuItem>
+      )}
+      slotProps={{
+        popper: {
+          placement: "bottom-start",
+        },
+      }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          inputProps={{
+            ...params.inputProps,
+            onMouseDown: (event) => {
+              params.inputProps.onMouseDown?.(event as React.MouseEvent<HTMLInputElement>);
+              if (open) setOpen(false);
+            },
+          }}
+          name={name}
+          label={label}
+          required={required}
+          error={Boolean(error)}
+          helperText={error || undefined}
+          sx={(theme) => ({
+            ...fieldControlSx(theme),
+            "& .MuiAutocomplete-inputRoot": {
+              padding: "0 39px 0 0",
+            },
+            "& .MuiAutocomplete-clearIndicator": { display: "none" },
+            ...(value === ""
+              ? { "& .MuiAutocomplete-input": { color: theme.palette.text.disabled } }
+              : {}),
+          })}
+          slotProps={{
+            inputLabel: {
+              shrink: Boolean(value) || hasEmptyOption,
+              sx: fieldLabelSx,
+            },
+            formHelperText: { sx: fieldHelperTextSx },
+          }}
+        />
+      )}
+    />
   );
 };
 
@@ -474,6 +457,7 @@ export const CreatableSelectField = ({
           className="ierp-create-option"
           aria-label={createTitle}
           size="small"
+          tabIndex={-1}
           onClick={() => setOpen(true)}
           sx={{
             position: "absolute",

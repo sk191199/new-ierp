@@ -23,6 +23,8 @@ export interface Opportunity {
   currencyCode: string;
   expectedCloseDate: string | null;
   ownerUserId: string | null;
+  ownerUserName?: string | null;
+  ownerUser?: string | { name?: string; fullName?: string; userName?: string; displayName?: string } | null;
   status: string;
   probability: number;
   computations: string | null;

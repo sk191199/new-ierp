@@ -223,8 +223,8 @@ export const OpportunitiesPage = () => {
         ),
       },
       {
-        accessorKey: "stage",
-        header: "Stage",
+        accessorKey: "status",
+        header: "Status",
         size: 130,
         minSize: 120,
         cell: ({ getValue }) => <StatusChip label={displayLabel(getValue())} />,
@@ -368,7 +368,7 @@ export const OpportunitiesPage = () => {
                 </IconButton>
               </Tooltip>
               <Tooltip title="Edit">
-                <IconButton aria-label={`Edit ${row.opportunityNumber}`} size="small">
+                <IconButton aria-label={`Edit ${row.opportunityNumber}`} size="small" onClick={() => navigate(ROUTES.crm.opportunityEdit(row.id))}>
                   <EditOutlinedIcon fontSize="small" />
                 </IconButton>
               </Tooltip>

@@ -42,7 +42,9 @@ import { deleteLead, getLead, updateLead } from "@/configurations/api/leadsApi";
 import ConvertOpportunityDialog, { type OpportunityFormData } from "../Opportunities/ConvertOpportunityDialog";
 import { convertLeadToOpportunity } from "@/configurations/api/opportunityApi";
 import { toastShown } from "@/redux/features/ui/uiSlice";
+import { selectCurrentUser } from "@/redux/features/auth/authSelectors";
 import { useAppDispatch } from "@/redux/hooks";
+import { useAppSelector } from "@/redux/hooks";
 
 const stages = ["Lead Capture", "Contact", "Opportunity", "Follow-Up", "Quotation"] as const;
 
@@ -59,6 +61,7 @@ export const LeadViewPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(selectCurrentUser);
   const [lead, setLead] = useState<Lead | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +91,7 @@ export const LeadViewPage = () => {
     return <ErrorState message={error ?? "Lead was not found."} onRetry={() => navigate(ROUTES.crm.leads)} />;
   }
 
+  const ownerName = lead.assignedTo || (lead.assignedToUserId === currentUser?.id ? currentUser?.displayName ?? "" : "");
   const currentStage = stageIndexFor(lead.status);
 
   const handleDelete = async () => {
@@ -137,6 +141,7 @@ export const LeadViewPage = () => {
     <Stack gap={{ xs: 2, md: 2.5 }}>
       <ProfileHero
         lead={lead}
+        ownerName={ownerName}
         onBack={() => navigate(ROUTES.crm.leads)}
         onEdit={() => navigate(ROUTES.crm.leadEdit(lead.id))}
         onDelete={() => setDeleteOpen(true)}
@@ -186,7 +191,7 @@ export const LeadViewPage = () => {
           <DetailCard tone="primary" title="Qualification" icon={<TrendingUpRoundedIcon />}>
             <DetailGrid singleColumn>
                 <DetailField label="Lead Source" value={lead.leadSource} />
-                <DetailField label="Assigned To" value={lead.assignedTo} icon={<AssignmentIndOutlinedIcon />} />
+                <DetailField label="Assigned To" value={ownerName} icon={<AssignmentIndOutlinedIcon />} />
                 <DetailField label="Industry" value={lead.industry} />
                 <DetailField label="Subsidiary" value={lead.subsidiary} />
               </DetailGrid>
@@ -252,6 +257,7 @@ const toLeadDraft = (lead: Lead, status: Lead["status"]): LeadDraft => ({
 
 const ProfileHero = ({
   lead,
+  ownerName,
   onBack,
   onEdit,
   onDelete,
@@ -261,6 +267,7 @@ const ProfileHero = ({
   converting,
 }: {
   lead: Lead;
+  ownerName: string;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -381,7 +388,7 @@ const ProfileHero = ({
           gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
         }}
       >
-        <HeroMetric label="Assigned To" value={lead.assignedTo} />
+        <HeroMetric label="Assigned To" value={ownerName} />
         <HeroMetric label="Created" value={formatDate(lead.createdDate)} />
       </Box>
     </CardContent>

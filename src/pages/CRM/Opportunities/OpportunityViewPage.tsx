@@ -21,12 +21,15 @@ import { convertOpportunityToSalesEnquiry, deleteOpportunity, getOpportunityById
 import { getErrorMessage } from "@/utils/errorHandling/getErrorMessage";
 import { formatCurrency, formatDate } from "@/utils/formatters";
 import { toastShown } from "@/redux/features/ui/uiSlice";
+import { selectCurrentUser } from "@/redux/features/auth/authSelectors";
 import { useAppDispatch } from "@/redux/hooks";
+import { useAppSelector } from "@/redux/hooks";
 
 export const OpportunityViewPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(selectCurrentUser);
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +68,10 @@ export const OpportunityViewPage = () => {
   }
 
   const probability = Math.min(100, Math.max(0, Number(opportunity.probability) || 0));
+  const ownerUser = opportunity.ownerUser;
+  const ownerName = opportunity.ownerUserName
+    || (typeof ownerUser === "string" ? ownerUser : ownerUser?.fullName ?? ownerUser?.displayName ?? ownerUser?.userName ?? ownerUser?.name)
+    || (opportunity.ownerUserId === currentUser?.id ? currentUser?.displayName ?? "" : "");
 
   const handleDelete = async () => {
     if (!id) return;
@@ -137,7 +144,7 @@ export const OpportunityViewPage = () => {
       </Card>
       <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" } }}>
         <MetricCard icon={<MonetizationOnOutlinedIcon />} label="Deal Value" value={formatCurrency(opportunity.opportunityValue, opportunity.currencyCode || "USD")} />
-        <MetricCard icon={<BusinessCenterOutlinedIcon />} label="Stage" value={<StatusChip label={displayLabel(opportunity.stage)} />} />
+        <MetricCard icon={<BusinessCenterOutlinedIcon />} label="Status" value={<StatusChip label={displayLabel(opportunity.status)} />} />
         <MetricCard icon={<TrendingUpRoundedIcon />} label="Win Probability" value={`${probability}%`} progress={probability} />
         <MetricCard icon={<CalendarTodayOutlinedIcon />} label="Expected Close" value={formatDate(opportunity.expectedCloseDate ?? "")} />
       </Box>
@@ -165,8 +172,8 @@ export const OpportunityViewPage = () => {
         <Stack gap={{ xs: 2, md: 2.5 }}>
           <DetailCard title="Classification" icon={<TrendingUpRoundedIcon />}>
             <DetailGrid singleColumn>
-              <DetailItem label="Stage" value={<StatusChip label={displayLabel(opportunity.stage)} />} />
-              <DetailItem label="Owner" value={opportunity.ownerUserId} />
+              <DetailItem label="Status" value={<StatusChip label={displayLabel(opportunity.status)} />} />
+              <DetailItem label="Owner" value={ownerName} />
               <DetailItem label="Subsidiary" value={opportunity.subsidiaryId} />
             </DetailGrid>
           </DetailCard>

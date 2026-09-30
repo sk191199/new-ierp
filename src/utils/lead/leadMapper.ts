@@ -2,7 +2,6 @@ import type { ApiPaginatedSuccess, ListQuery } from "@/models/common/api";
 import type { Lead, LeadAttachment, LeadFollowUp } from "@/models/lead/lead";
 import { resolveAiNextAction, resolveLeadConfidence } from "@/models/lead/lead";
 import {
-  leadAssigneeIdMap,
   leadAssigneeOptions,
   leadRevenueOptions,
 } from "@/pages/CRM/Leads/leadOptions";
@@ -87,7 +86,6 @@ const assignedUserName = (value: BackendLead): string => {
     value.assignedUserName,
     nestedName,
     value.assignedTo,
-    value.assignedToUserId,
   ];
 
   const matchingOption = leadAssigneeOptions.find((option) =>
@@ -98,10 +96,11 @@ const assignedUserName = (value: BackendLead): string => {
     return matchingOption.value;
   }
 
-  // The current backend response exposes only the seeded user UUID. Resolve it
-  // through the project-level map instead of displaying a raw UUID in the UI.
-  return leadAssigneeIdMap[value.assignedToUserId as keyof typeof leadAssigneeIdMap] ?? "";
+  return candidates.find((candidate) => candidate?.trim() && !isUuid(candidate))?.trim() ?? "";
 };
+
+const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 const annualRevenueOption = (value?: number): string | undefined => {
   if (value === undefined || value <= 0) {
