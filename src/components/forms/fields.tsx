@@ -299,11 +299,13 @@ export const SelectField = ({
   const hasEmptyOption =
     Boolean(includeEmpty) ||
     options.some((option) => option.value === "");
-  const selectOptions =
-    includeEmpty && !options.some((option) => option.value === "")
-      ? [{ value: "", label: emptyLabel }, ...options]
-      : options;
+  const placeholderOption = options.find((option) => option.value === "");
+  const selectOptions = options.filter(
+    (option) =>
+      option.value !== "" || !/^select(?:\s|\.{3}|$)/i.test(option.label.trim()),
+  );
   const selectedOption = selectOptions.find((option) => option.value === value) ?? null;
+  const displayEmptyLabel = placeholderOption?.label ?? emptyLabel;
   const filteredOptions = selectOptions.filter((option) => {
     const query = search.trim().toLowerCase();
     return !query || option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query);
@@ -315,7 +317,7 @@ export const SelectField = ({
       fullWidth
       options={selectOptions}
       value={selectedOption}
-      inputValue={open ? search : selectedOption?.label ?? ""}
+      inputValue={open ? search : selectedOption?.label ?? (hasEmptyOption ? displayEmptyLabel : "")}
       open={open}
       onOpen={() => {
         setSearch("");
