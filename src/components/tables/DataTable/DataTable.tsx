@@ -72,6 +72,7 @@ export interface DataTableProps<T> {
   enableColumnResize?: boolean;
   variant?: "default" | "cards";
   paginationStyle?: "range" | "count";
+  paginationLabel?: string;
   tableSx?: SystemStyleObject<Theme>;
   actionColumnSize?: number;
   fluidColumnIds?: string[];
@@ -109,6 +110,7 @@ export const DataTable = <T,>({
   enableColumnResize = true,
   variant = "default",
   paginationStyle = "range",
+  paginationLabel,
   tableSx,
   actionColumnSize,
   fluidColumnIds = [],
@@ -465,6 +467,7 @@ export const DataTable = <T,>({
         total={total}
         onPageChange={onPageChange}
         style={paginationStyle}
+        pageLabel={paginationLabel}
       />
     </Paper>
   );

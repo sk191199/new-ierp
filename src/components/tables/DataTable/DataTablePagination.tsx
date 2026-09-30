@@ -6,6 +6,7 @@ interface DataTablePaginationProps {
   total: number;
   onPageChange: (page: number) => void;
   style?: "range" | "count";
+  pageLabel?: string;
 }
 
 export const DataTablePagination = ({
@@ -14,6 +15,7 @@ export const DataTablePagination = ({
   total,
   onPageChange,
   style = "range",
+  pageLabel,
 }: DataTablePaginationProps) => {
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
@@ -31,9 +33,16 @@ export const DataTablePagination = ({
       gap={1}
       sx={{ pt: 2 }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
-        {label}
-      </Typography>
+      <Stack direction="row" gap={1.5} flexWrap="wrap">
+        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
+          {label}
+        </Typography>
+        {pageLabel ? (
+          <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
+            {pageLabel}
+          </Typography>
+        ) : null}
+      </Stack>
       <Stack direction="row" gap={1}>
         <Button variant="outlined" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
           PREV
