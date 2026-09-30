@@ -90,7 +90,8 @@ const ChildLink = ({ label, path, pathname }: { label: string; path: string; pat
           borderRadius: "50%",
           mr: 1.25,
           flexShrink: 0,
-          bgcolor: active ? "primary.main" : "transparent",
+          bgcolor: (theme) =>
+            active ? theme.palette.primary.main : alpha(theme.palette.chrome.sidebarMuted, 0.55),
           boxShadow: (theme) => (active ? `0 0 8px ${alpha(theme.palette.primary.main, 0.85)}` : "none"),
         }}
       />
@@ -149,14 +150,15 @@ const leafButtonSx = (active: boolean, collapsed: boolean) => ({
 
 const childButtonSx = (active: boolean) => ({
   mx: 1.25,
-  mb: 0.35,
-  minHeight: 34,
+  mb: 0.65,
+  minHeight: 36,
   display: "flex",
   alignItems: "center",
-  borderRadius: 2,
-  pl: 1.5,
+  borderRadius: 1.5,
+  pl: 3,
   color: active ? "common.white" : "chrome.sidebarMuted",
-  bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.88) : "transparent"),
+  bgcolor: (theme: Theme) =>
+    active ? alpha(theme.palette.primary.main, 0.88) : alpha(theme.palette.chrome.sidebarHover, 0.3),
   "&:hover": {
     bgcolor: (theme: Theme) => (active ? alpha(theme.palette.primary.main, 0.94) : theme.palette.chrome.sidebarHover),
   },

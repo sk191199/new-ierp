@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, Button, Card, CardContent, Stack, TextField, Typography } from "@mui/material";
 import { useParams } from "react-router-dom";
 import { getAllModules, getDynamicModuleEntity } from "@/configurations/api/settingsService";
+import { LoadingState } from "@/components/common/LoadingState/LoadingState";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
 import { FormSection } from "@/components/forms/FormSection";
 import { readLeadCustomFields, type LeadCustomField } from "@/pages/CRM/Leads/leadFieldOrder";
@@ -14,10 +15,12 @@ export const ConfiguredScreenPage = () => {
   const [screenName, setScreenName] = useState("Configured Screen");
   const [dynamicScreen, setDynamicScreen] = useState(false);
   const [dynamicFields, setDynamicFields] = useState<MetadataField[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     const loadScreen = async () => {
+      setLoading(true);
       try {
         const modules = await getAllModules();
         const module = modules.find((item) => settingsSlug(item.name) === moduleSlug);
@@ -39,6 +42,10 @@ export const ConfiguredScreenPage = () => {
       } catch {
         if (active) {
           setDynamicFields([]);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
         }
       }
     };
@@ -83,6 +90,10 @@ export const ConfiguredScreenPage = () => {
       fields: screenFields.filter((field) => field.section === section),
     })).filter((section) => section.fields.length > 0);
   }, [screenFields, sections]);
+
+  if (loading) {
+    return <LoadingState label="Loading configured screen…" minHeight={360} delayMs={120} />;
+  }
 
   return (
     <Stack gap={2}>

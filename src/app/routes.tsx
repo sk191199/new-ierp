@@ -90,7 +90,7 @@ const SettingsMain = lazy(() =>
 );
 
 
-const RouteFallback = () => <LoadingState label="Loading workspace…" minHeight={360} />;
+const RouteFallback = () => <LoadingState label="Loading workspace…" minHeight={360} delayMs={120} />;
 
 export const AppRoutes = () => {
   const element = useRoutes([

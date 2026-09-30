@@ -13,6 +13,16 @@ import {
 } from "./navigationConfig";
 import { SidebarItem } from "./SidebarItem";
 
+const moduleDisplayOrder = (code: string, name: string): number => {
+  const keys = [code, name].map((value) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+  if (keys.some((key) => key.startsWith("crm"))) return 0;
+  if (keys.some((key) => key.startsWith("sales"))) return 1;
+  if (keys.some((key) => key === "hr" || key.startsWith("humanresources"))) return 2;
+  if (keys.some((key) => key.startsWith("master"))) return 3;
+  return 4;
+};
+
 interface SidebarProps {
   collapsed: boolean;
   onSignOut: () => void;
@@ -37,13 +47,21 @@ export const Sidebar = ({ collapsed, onSignOut }: SidebarProps) => {
       void getCachedMetadataModules(moduleCacheKey, forceRefresh)
         .then((modules) => {
           if (active && requestId === latestRequestId) {
-            const dynamicItems = navigationItemsFromModules(modules).filter(
+            const orderedModules = [...modules].sort(
+              (left, right) =>
+                moduleDisplayOrder(left.code, left.name) -
+                moduleDisplayOrder(right.code, right.name),
+            );
+            const dynamicItems = navigationItemsFromModules(orderedModules).filter(
               (item) => item.label.toLowerCase() !== "sales",
             );
+            const crmModuleCount = orderedModules.filter(
+              (module) => moduleDisplayOrder(module.code, module.name) === 0,
+            ).length;
+            dynamicItems.splice(crmModuleCount, 0, ...salesNavigationItems());
             setItems([
               ...navigationItems(),
               ...dynamicItems,
-              ...salesNavigationItems(),
               ...systemSettingsNavigationItems(),
             ]);
           }

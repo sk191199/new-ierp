@@ -54,6 +54,7 @@ import {
   type CreateDynamicModuleEntityFieldPayload,
 } from "@/configurations/api/settingsService";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
+import { LoadingState } from "@/components/common/LoadingState/LoadingState";
 import {
   readLeadCustomFields,
   readLeadFieldOrder,
@@ -1290,7 +1291,9 @@ export const SystemSettingsPage = () => {
               "&:last-child": { pb: { xs: 1.5, sm: 2.25, md: 3 } },
             }}
           >
-            {activeSection === "Screen Architect" ? (
+            {activeSection === "Screen Architect" && modulesLoading ? (
+              <LoadingState label="Loading screen architecture…" minHeight={360} delayMs={120} />
+            ) : activeSection === "Screen Architect" ? (
               <ScreenArchitect
                 activeModule={activeModule}
                 activeScreen={activeScreen}

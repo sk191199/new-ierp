@@ -2,7 +2,9 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import { Box, Drawer, Fab, IconButton, Tooltip } from "@mui/material";
+import { Suspense } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { LoadingState } from "@/components/common/LoadingState/LoadingState";
 import { ROUTES } from "@/constants/routes";
 import { useResponsive } from "@/hooks/useResponsive";
 import { sessionCleared } from "@/redux/features/auth/authSlice";
@@ -113,7 +115,9 @@ export const AppLayout = () => {
               p: { xs: 1.75, md: 2.5 },
             }}
           >
-            <Outlet />
+            <Suspense fallback={<LoadingState label="Loading workspace…" minHeight={360} delayMs={120} />}>
+              <Outlet />
+            </Suspense>
           </Box>
         </Box>
       </Box>
