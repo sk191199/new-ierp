@@ -15,8 +15,8 @@ import {
   Typography,
 } from "@mui/material";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { KpiCard } from "@/components/cards/KpiCard/KpiCard";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog/ConfirmDialog";
 import { FilterPanel } from "@/components/common/FilterPanel/FilterPanel";
@@ -43,11 +43,27 @@ const getStatusTone = (status: UomStatus): "default" | "success" =>
   status === "Active" ? "success" : "default";
 
 export const UomMasterPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const tableState = useTableState({ pageSize: 8, sortBy: "code", sortDir: "asc" });
+  const { setPage } = tableState;
   const [records, setRecords] = useState<UomRecord[]>(() => uomMockData.map((record) => ({ ...record })));
   const [statusFilter, setStatusFilter] = useState("");
   const [pendingDelete, setPendingDelete] = useState<UomRecord | null>(null);
+
+  useEffect(() => {
+    const createdUom = (location.state as { createdUom?: UomRecord } | null)?.createdUom;
+    if (!createdUom) {
+      return;
+    }
+
+    setRecords((current) => current.some((record) => record.id === createdUom.id)
+      ? current
+      : [createdUom, ...current]);
+    setPage(1);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate, setPage]);
 
   const query = tableState.query;
   const filteredRows = useMemo(() => {
@@ -151,9 +167,7 @@ export const UomMasterPage = () => {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() =>
-                  dispatch(toastShown({ message: "New UOM form will be available in a future update.", severity: "info" }))
-                }
+                onClick={() => navigate(ROUTES.masters.uomNew, { state: { records } })}
               >
                 New UOM
               </Button>

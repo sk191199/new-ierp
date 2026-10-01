@@ -73,14 +73,11 @@ export const ROUTES = {
     root: "/masters",
     customers: "/masters/customers",
     uom: "/settings/catalog/masters/uom",
+    uomNew: "/settings/catalog/masters/uom/new",
     subsidiaryNew: "/masters/subsidiaries/new",
     subsidiaries: "/settings/catalog/masters/subsidiary",
   },
-  // settingsCatalog: {
-  //   masters: {
-  //     subsidiary: "/settings/catalog/masters/subsidiary",
-  //   },
-  // },
+
   settings: "/settings",
   settingsSystem: "/settings/system",
 } as const;

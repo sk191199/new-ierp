@@ -81,6 +81,11 @@ const UomMasterPage = lazy(() =>
     default: module.UomMasterPage,
   })),
 );
+const UomEditorPage = lazy(() =>
+  import("../pages/Masters/UomEditorPage").then((module) => ({
+    default: module.UomEditorPage,
+  })),
+);
 
 const ModulePlaceholder = lazy(() =>
   import("@/pages/ModulePlaceholder/ModulePlaceholder").then((module) => ({
@@ -133,6 +138,7 @@ export const AppRoutes = () => {
             { path: ROUTES.masters.subsidiaries, element: <SubsidiaryMasterPage /> },
             { path: ROUTES.masters.subsidiaryNew, element: <SubsidiaryEditorPage mode="create" /> },
             { path: ROUTES.masters.uom, element: <UomMasterPage /> },
+            { path: ROUTES.masters.uomNew, element: <UomEditorPage /> },
             {
               path: ROUTES.aiAssistant,
               element: <ModulePlaceholder title="AI Assistant" module="Intelligence" />,
