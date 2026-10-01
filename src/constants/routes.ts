@@ -72,6 +72,7 @@ export const ROUTES = {
   masters: {
     root: "/masters",
     customers: "/masters/customers",
+    uom: "/settings/catalog/masters/uom",
     subsidiaryNew: "/masters/subsidiaries/new",
     subsidiaries: "/settings/catalog/masters/subsidiary",
   },

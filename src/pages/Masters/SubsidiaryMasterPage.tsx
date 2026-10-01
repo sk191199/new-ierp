@@ -2,6 +2,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Breadcrumbs,
@@ -318,23 +319,42 @@ export const SubsidiaryMasterPage = () => {
           </FilterPanel>
         }
         rowActions={(record) => (
-          <Stack direction="row" justifyContent="flex-end">
-            <Tooltip title="View">
-              <IconButton aria-label={`View ${record.name}`} size="small" onClick={() => openRecord(record, "view")}>
-                <VisibilityOutlinedIcon fontSize="small" />
+          <Box
+            sx={{
+              position: "relative",
+              minWidth: 132,
+              minHeight: 36,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Box className="ierp-row-actions-compact">
+              <IconButton aria-label={`Actions for ${record.name}`} size="small">
+                <MoreVertIcon fontSize="small" />
               </IconButton>
-            </Tooltip>
-            <Tooltip title="Edit">
-              <IconButton aria-label={`Edit ${record.name}`} size="small" onClick={() => openRecord(record, "edit")}>
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete">
-              <IconButton aria-label={`Delete ${record.name}`} size="small" color="error" onClick={() => setPendingDelete(record)}>
-                <DeleteOutlineIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
+            </Box>
+            <Stack
+              className="ierp-row-actions-expanded"
+              direction="row"
+              sx={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)" }}
+            >
+              <Tooltip title="View">
+                <IconButton aria-label={`View ${record.name}`} size="small" onClick={() => openRecord(record, "view")}>
+                  <VisibilityOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Edit">
+                <IconButton aria-label={`Edit ${record.name}`} size="small" onClick={() => openRecord(record, "edit")}>
+                  <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete">
+                <IconButton aria-label={`Delete ${record.name}`} size="small" color="error" onClick={() => setPendingDelete(record)}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Box>
         )}
         emptyTitle="No subsidiaries found"
       />
