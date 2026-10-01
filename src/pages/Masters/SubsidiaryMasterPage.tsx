@@ -18,8 +18,8 @@ import {
   Typography,
 } from "@mui/material";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
 import { KpiCard } from "@/components/cards/KpiCard/KpiCard";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog/ConfirmDialog";
@@ -33,7 +33,7 @@ import { useTableState } from "@/hooks/useTableState";
 import type { KpiMetric } from "@/models/dashboard/dashboard";
 import { subsidiaryMockData, type SubsidiaryRecord, type SubsidiaryStatus } from "./subsidiaryMockData";
 
-type DialogMode = "create" | "edit" | "view";
+type DialogMode = "edit" | "view";
 
 const emptySubsidiary = (): SubsidiaryRecord => ({
   id: "",
@@ -86,22 +86,30 @@ const toCsv = (records: SubsidiaryRecord[], subsidiaries: SubsidiaryRecord[]): s
   return [columns, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
 };
 
-const getNextId = (records: SubsidiaryRecord[]): string => {
-  const highestId = records.reduce((highest, record) => {
-    const numericId = Number(record.id.match(/(\d+)$/)?.[1] ?? 0);
-    return Math.max(highest, numericId);
-  }, 0);
-  return `SUB-${String(highestId + 1).padStart(3, "0")}`;
-};
-
 export const SubsidiaryMasterPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const tableState = useTableState({ pageSize: 8, sortBy: "name", sortDir: "asc" });
+  const { setPage } = tableState;
   const [records, setRecords] = useState<SubsidiaryRecord[]>(() => subsidiaryMockData.map((record) => ({ ...record })));
   const [statusFilter, setStatusFilter] = useState("");
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
   const [draft, setDraft] = useState<SubsidiaryRecord>(emptySubsidiary);
   const [attempted, setAttempted] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SubsidiaryRecord | null>(null);
+
+  useEffect(() => {
+    const createdSubsidiary = (location.state as { createdSubsidiary?: SubsidiaryRecord } | null)?.createdSubsidiary;
+    if (!createdSubsidiary) {
+      return;
+    }
+
+    setRecords((current) => current.some((record) => record.id === createdSubsidiary.id)
+      ? current
+      : [createdSubsidiary, ...current]);
+    setPage(1);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate, setPage]);
 
   const filteredRows = useMemo(() => {
     const search = tableState.query.search.trim().toLowerCase();
@@ -157,12 +165,6 @@ export const SubsidiaryMasterPage = () => {
     setAttempted(false);
   };
 
-  const openCreate = () => {
-    setDraft(emptySubsidiary());
-    setAttempted(false);
-    setDialogMode("create");
-  };
-
   const openRecord = (record: SubsidiaryRecord, mode: DialogMode) => {
     setDraft({ ...record });
     setAttempted(false);
@@ -175,10 +177,7 @@ export const SubsidiaryMasterPage = () => {
       return;
     }
 
-    if (dialogMode === "create") {
-      setRecords((current) => [{ ...draft, id: getNextId(current) }, ...current]);
-      tableState.setPage(1);
-    } else if (dialogMode === "edit") {
+    if (dialogMode === "edit") {
       setRecords((current) => current.map((record) => record.id === draft.id ? { ...draft } : record));
     }
     closeDialog();
@@ -264,7 +263,11 @@ export const SubsidiaryMasterPage = () => {
               <Button variant="outlined" startIcon={<FileDownloadOutlinedIcon />} onClick={exportRecords}>
                 Export
               </Button>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate(ROUTES.masters.subsidiaryNew, { state: { records } })}
+              >
                 New Subsidiary
               </Button>
             </>
@@ -347,7 +350,7 @@ export const SubsidiaryMasterPage = () => {
 
       <Dialog open={Boolean(dialogMode)} onClose={closeDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {dialogMode === "create" ? "New Subsidiary" : dialogMode === "edit" ? "Edit Subsidiary" : "Subsidiary Details"}
+          {dialogMode === "edit" ? "Edit Subsidiary" : "Subsidiary Details"}
         </DialogTitle>
         <DialogContent dividers>
           <FieldGrid>
@@ -366,7 +369,7 @@ export const SubsidiaryMasterPage = () => {
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={closeDialog}>{dialogMode === "view" ? "Close" : "Cancel"}</Button>
-          {dialogMode !== "view" ? <Button variant="contained" onClick={saveDraft}>{dialogMode === "create" ? "Save Subsidiary" : "Save Changes"}</Button> : null}
+          {dialogMode === "edit" ? <Button variant="contained" onClick={saveDraft}>Save Changes</Button> : null}
         </DialogActions>
       </Dialog>
 

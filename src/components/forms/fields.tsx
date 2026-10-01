@@ -296,6 +296,7 @@ export const SelectField = ({
 }: SelectFieldProps) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [highlightedOption, setHighlightedOption] = useState<SelectFieldProps["options"][number] | null>(null);
   const hasEmptyOption =
     Boolean(includeEmpty) ||
     options.some((option) => option.value === "");
@@ -315,21 +316,47 @@ export const SelectField = ({
     <Autocomplete
       id={name}
       fullWidth
+      autoHighlight
       options={selectOptions}
       value={selectedOption}
       inputValue={open ? search : selectedOption?.label ?? (hasEmptyOption ? displayEmptyLabel : "")}
       open={open}
       onOpen={() => {
         setSearch("");
+        setHighlightedOption(selectOptions[0] ?? null);
         setOpen(true);
       }}
       onClose={() => setOpen(false)}
+      onHighlightChange={(_, option) => setHighlightedOption(option)}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab" || !open || !highlightedOption) {
+          return;
+        }
+
+        const activeOption = filteredOptions.find((option) => option.value === highlightedOption.value);
+        if (!activeOption) {
+          return;
+        }
+
+        onChange(activeOption.value);
+        setSearch("");
+        setOpen(false);
+      }}
       onInputChange={(_, next, reason) => {
         if (reason === "input") {
           setSearch(next);
+          const query = next.trim().toLowerCase();
+          setHighlightedOption(
+            selectOptions.find(
+              (option) =>
+                option.label.toLowerCase().includes(query) ||
+                option.value.toLowerCase().includes(query),
+            ) ?? null,
+          );
           if (!open) setOpen(true);
         } else if (reason === "clear") {
           setSearch("");
+          setHighlightedOption(selectOptions[0] ?? null);
         }
       }}
       disabled={disabled}

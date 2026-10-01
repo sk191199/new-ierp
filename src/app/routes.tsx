@@ -71,6 +71,11 @@ const SubsidiaryMasterPage = lazy(() =>
     default: module.SubsidiaryMasterPage,
   })),
 );
+const SubsidiaryEditorPage = lazy(() =>
+  import("@/pages/Masters/SubsidiaryEditorPage").then((module) => ({
+    default: module.SubsidiaryEditorPage,
+  })),
+);
 
 const ModulePlaceholder = lazy(() =>
   import("@/pages/ModulePlaceholder/ModulePlaceholder").then((module) => ({
@@ -121,6 +126,7 @@ export const AppRoutes = () => {
             { path: "/crm/leads/:id", element: <LeadViewPage /> },
             { path: ROUTES.masters.customers, element: <CustomerMasterPage /> },
             { path: ROUTES.masters.subsidiaries, element: <SubsidiaryMasterPage /> },
+            { path: ROUTES.masters.subsidiaryNew, element: <SubsidiaryEditorPage mode="create" /> },
             {
               path: ROUTES.aiAssistant,
               element: <ModulePlaceholder title="AI Assistant" module="Intelligence" />,
