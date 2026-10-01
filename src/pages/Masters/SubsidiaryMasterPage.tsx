@@ -306,15 +306,6 @@ export const SubsidiaryMasterPage = () => {
           "& .MuiTableHead-root .MuiTableCell-root": { py: 0.75, fontSize: "11px" },
           "& .MuiTableBody-root .MuiTableRow-root .MuiTableCell-root": { py: 1.35 },
         }}
-        extras={
-          <SelectField
-            name="subsidiary-page-size"
-            label="Rows per page"
-            value={String(tableState.query.pageSize)}
-            onChange={(value) => tableState.setPageSize(Number(value))}
-            options={[8, 10, 20, 50].map((value) => ({ value: String(value), label: String(value) }))}
-          />
-        }
         filters={
           <FilterPanel onClear={() => { setStatusFilter(""); tableState.setPage(1); }}>
             <SelectField
