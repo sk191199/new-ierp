@@ -1,6 +1,6 @@
 import { API_ENDPOINTS, USE_MOCK, http, unwrapData, mockLatency } from "./api";
 import type { CustomFieldDefinition, MetadataField, ScreenMetadata } from "@/models/metadata/metadata";
-import { customerMasterMetadata } from "@/pages/Masters/customers.metadata.mock";
+import { customerMasterMetadata } from "@/pages/Masters/Customer/customers.metadata.mock";
 
 const mockCatalog: Record<string, ScreenMetadata> = {
   "customer-master": customerMasterMetadata,

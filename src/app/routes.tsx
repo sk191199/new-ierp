@@ -62,27 +62,27 @@ const SalesQuotationEditorPage = lazy(() =>
   })),
 );
 const CustomerMasterPage = lazy(() =>
-  import("@/pages/Masters/CustomerMasterPage").then((module) => ({
+  import("@/pages/Masters/Customer/CustomerMasterPage").then((module) => ({
     default: module.CustomerMasterPage,
   })),
 );
 const SubsidiaryMasterPage = lazy(() =>
-  import("@/pages/Masters/SubsidiaryMasterPage").then((module) => ({
+  import("@/pages/Masters/Subsidiary/SubsidiaryMasterPage").then((module) => ({
     default: module.SubsidiaryMasterPage,
   })),
 );
 const SubsidiaryEditorPage = lazy(() =>
-  import("@/pages/Masters/SubsidiaryEditorPage").then((module) => ({
+  import("@/pages/Masters/Subsidiary/SubsidiaryEditorPage").then((module) => ({
     default: module.SubsidiaryEditorPage,
   })),
 );
 const UomMasterPage = lazy(() =>
-  import("@/pages/Masters/UomMasterPage").then((module) => ({
+  import("@/pages/Masters/Uom/UomMasterPage").then((module) => ({
     default: module.UomMasterPage,
   })),
 );
 const UomEditorPage = lazy(() =>
-  import("../pages/Masters/UomEditorPage").then((module) => ({
+  import("../pages/Masters/Uom/UomEditorPage").then((module) => ({
     default: module.UomEditorPage,
   })),
 );
