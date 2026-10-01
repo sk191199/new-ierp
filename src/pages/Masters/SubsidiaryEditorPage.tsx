@@ -1,6 +1,6 @@
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Box, Button, Stack } from "@mui/material";
+import { Button, Stack } from "@mui/material";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader/PageHeader";
@@ -25,17 +25,32 @@ const emptySubsidiary = (): SubsidiaryRecord => ({
   legalName: "",
   parentSubsidiaryId: "",
   currency: "USD",
+  isChildSubsidiary: false,
+  inactive: false,
+  website: "",
+  documentNumberPrefix: "",
+  emailAddress: "",
+  vatRegistrationNo: "",
+  taxReferenceNo: "",
+  organizationIdType: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  addressCountry: "",
 });
-
-const statusOptions = [
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" },
-];
 
 const currencyOptions = ["USD", "INR", "EUR", "GBP", "AED", "SGD", "AUD", "CAD"].map((value) => ({
   value,
   label: value,
 }));
+
+const organizationIdTypeOptions = [
+  { value: "UEN", label: "UEN" },
+  { value: "VAT", label: "VAT Registration Number" },
+  { value: "TIN", label: "Tax Identification Number" },
+];
 
 const getNextId = (records: SubsidiaryRecord[]): string => {
   const highestId = records.reduce((highest, record) => {
@@ -54,24 +69,24 @@ export const SubsidiaryEditorPage = ({ mode }: SubsidiaryEditorPageProps) => {
   const [draft, setDraft] = useState<SubsidiaryRecord>(emptySubsidiary);
   const [attempted, setAttempted] = useState(false);
 
-  const parentOptions = [
-    { value: "", label: "No parent" },
-    ...existingRecords.map((record) => ({ value: record.id, label: record.name })),
-  ];
-
   const save = () => {
     setAttempted(true);
     if (
       !draft.name.trim() ||
+      !draft.currency ||
       !draft.legalName.trim() ||
-      !draft.stateProvince.trim() ||
-      !draft.country.trim() ||
-      !draft.currency
+      !draft.addressLine1?.trim() ||
+      (draft.isChildSubsidiary && !draft.parentSubsidiaryId)
     ) {
       return;
     }
 
-    const createdSubsidiary = { ...draft, id: getNextId(existingRecords) };
+    const createdSubsidiary = {
+      ...draft,
+      id: getNextId(existingRecords),
+      status: draft.inactive ? "Inactive" : "Active",
+      parentSubsidiaryId: draft.isChildSubsidiary ? draft.parentSubsidiaryId : "",
+    };
     dispatch(toastShown({ message: "Subsidiary created successfully.", severity: "success" }));
     navigate(ROUTES.masters.subsidiaries, { state: { createdSubsidiary } });
   };
@@ -111,15 +126,8 @@ export const SubsidiaryEditorPage = ({ mode }: SubsidiaryEditorPageProps) => {
           save();
         }}
       >
-        <FormSection title="Subsidiary Information" collapsible defaultExpanded>
+        <FormSection title="General Information" collapsible defaultExpanded>
           <FieldGrid>
-            <TextFieldControl
-              name="subsidiary-id"
-              label="ID"
-              value="Assigned on save"
-              onChange={() => undefined}
-              readOnly
-            />
             <TextFieldControl
               name="subsidiary-name"
               label="Name"
@@ -128,6 +136,79 @@ export const SubsidiaryEditorPage = ({ mode }: SubsidiaryEditorPageProps) => {
               onChange={(name) => setDraft((current) => ({ ...current, name }))}
               error={attempted && !draft.name.trim() ? "Name is required." : undefined}
             />
+            <BooleanField
+              name="subsidiary-inactive"
+              label="Inactive"
+              value={draft.inactive ?? false}
+              onChange={(inactive) => setDraft((current) => ({ ...current, inactive }))}
+            />
+            <BooleanField
+              name="subsidiary-is-child"
+              label="Is Child Subsidiary"
+              value={draft.isChildSubsidiary ?? false}
+              onChange={(hasChildSubsidiary) =>
+                setDraft((current) => ({
+                  ...current,
+                  isChildSubsidiary: hasChildSubsidiary,
+                  parentSubsidiaryId: hasChildSubsidiary ? current.parentSubsidiaryId : "",
+                }))
+              }
+            />
+            {draft.isChildSubsidiary ? (
+              <SelectField
+                name="subsidiary-parent"
+                label="Parent Subsidiary"
+                required
+                value={draft.parentSubsidiaryId}
+                onChange={(parentSubsidiaryId) =>
+                  setDraft((current) => ({ ...current, parentSubsidiaryId }))
+                }
+                options={existingRecords.map((record) => ({ value: record.id, label: record.name }))}
+                includeEmpty
+                emptyLabel="Select Parent Subsidiary"
+                error={attempted && !draft.parentSubsidiaryId ? "Parent subsidiary is required." : undefined}
+              />
+            ) : null}
+            <SelectField
+              name="subsidiary-currency"
+              label="Currency"
+              required
+              value={draft.currency}
+              onChange={(currency) => setDraft((current) => ({ ...current, currency }))}
+              options={currencyOptions}
+              error={attempted && !draft.currency ? "Currency is required." : undefined}
+            />
+            <TextFieldControl
+              name="subsidiary-website"
+              label="Website"
+              value={draft.website ?? ""}
+              onChange={(website) => setDraft((current) => ({ ...current, website }))}
+            />
+            <TextFieldControl
+              name="subsidiary-document-prefix"
+              label="Document Number Prefix"
+              value={draft.documentNumberPrefix ?? ""}
+              onChange={(documentNumberPrefix) =>
+                setDraft((current) => ({ ...current, documentNumberPrefix }))
+              }
+            />
+            <TextFieldControl
+              name="subsidiary-state"
+              label="State/Province"
+              value={draft.stateProvince ?? ""}
+              onChange={(stateProvince) => setDraft((current) => ({ ...current, stateProvince }))}
+            />
+            <TextFieldControl
+              name="subsidiary-country"
+              label="Country"
+              value={draft.country ?? ""}
+              onChange={(country) => setDraft((current) => ({ ...current, country }))}
+            />
+          </FieldGrid>
+        </FormSection>
+
+        <FormSection title="Legal & Tax" collapsible defaultExpanded>
+          <FieldGrid>
             <TextFieldControl
               name="subsidiary-legal-name"
               label="Legal Name"
@@ -137,58 +218,81 @@ export const SubsidiaryEditorPage = ({ mode }: SubsidiaryEditorPageProps) => {
               error={attempted && !draft.legalName.trim() ? "Legal name is required." : undefined}
             />
             <TextFieldControl
-              name="subsidiary-state"
-              label="State/Province"
-              required
-              value={draft.stateProvince}
-              onChange={(stateProvince) => setDraft((current) => ({ ...current, stateProvince }))}
-              error={attempted && !draft.stateProvince.trim() ? "State/Province is required." : undefined}
+              name="subsidiary-email-address"
+              label="Email Address"
+              type="email"
+              value={draft.emailAddress ?? ""}
+              onChange={(emailAddress) => setDraft((current) => ({ ...current, emailAddress }))}
             />
             <TextFieldControl
-              name="subsidiary-country"
+              name="subsidiary-vat-registration"
+              label="VAT Registration No"
+              value={draft.vatRegistrationNo ?? ""}
+              onChange={(vatRegistrationNo) =>
+                setDraft((current) => ({ ...current, vatRegistrationNo }))
+              }
+            />
+            <TextFieldControl
+              name="subsidiary-tax-reference"
+              label="Tax Ref No. / UEN"
+              value={draft.taxReferenceNo ?? ""}
+              onChange={(taxReferenceNo) =>
+                setDraft((current) => ({ ...current, taxReferenceNo }))
+              }
+            />
+            <SelectField
+              name="subsidiary-organization-id-type"
+              label="Organization ID Type"
+              value={draft.organizationIdType ?? ""}
+              onChange={(organizationIdType) =>
+                setDraft((current) => ({ ...current, organizationIdType }))
+              }
+              options={organizationIdTypeOptions}
+              includeEmpty
+            />
+          </FieldGrid>
+        </FormSection>
+
+        <FormSection title="Address" collapsible defaultExpanded>
+          <FieldGrid>
+            <TextFieldControl
+              name="subsidiary-address-line-1"
+              label="Address Line 1"
+              required
+              value={draft.addressLine1 ?? ""}
+              onChange={(addressLine1) => setDraft((current) => ({ ...current, addressLine1 }))}
+              error={attempted && !draft.addressLine1?.trim() ? "Address Line 1 is required." : undefined}
+            />
+            <TextFieldControl
+              name="subsidiary-address-line-2"
+              label="Address Line 2"
+              value={draft.addressLine2 ?? ""}
+              onChange={(addressLine2) => setDraft((current) => ({ ...current, addressLine2 }))}
+            />
+            <TextFieldControl
+              name="subsidiary-city"
+              label="City"
+              value={draft.city ?? ""}
+              onChange={(city) => setDraft((current) => ({ ...current, city }))}
+            />
+            <TextFieldControl
+              name="subsidiary-address-state"
+              label="State"
+              value={draft.state ?? ""}
+              onChange={(state) => setDraft((current) => ({ ...current, state }))}
+            />
+            <TextFieldControl
+              name="subsidiary-postal-code"
+              label="Postal Code"
+              value={draft.postalCode ?? ""}
+              onChange={(postalCode) => setDraft((current) => ({ ...current, postalCode }))}
+            />
+            <TextFieldControl
+              name="subsidiary-address-country"
               label="Country"
-              required
-              value={draft.country}
-              onChange={(country) => setDraft((current) => ({ ...current, country }))}
-              error={attempted && !draft.country.trim() ? "Country is required." : undefined}
+              value={draft.addressCountry ?? ""}
+              onChange={(addressCountry) => setDraft((current) => ({ ...current, addressCountry }))}
             />
-            <SelectField
-              name="subsidiary-currency"
-              label="Currency"
-              required
-              value={draft.currency}
-              onChange={(currency) => setDraft((current) => ({ ...current, currency }))}
-              options={currencyOptions}
-            />
-            <SelectField
-              name="subsidiary-parent"
-              label="Parent Subsidiary"
-              value={draft.parentSubsidiaryId}
-              onChange={(parentSubsidiaryId) =>
-                setDraft((current) => ({ ...current, parentSubsidiaryId }))
-              }
-              options={parentOptions}
-            />
-            <SelectField
-              name="subsidiary-status"
-              label="Status"
-              value={draft.status}
-              onChange={(status) =>
-                setDraft((current) => ({ ...current, status: status as SubsidiaryRecord["status"] }))
-              }
-              options={statusOptions}
-            />
-            <Box sx={{ display: "flex", alignItems: "center", minHeight: 56 }}>
-              <BooleanField
-                name="subsidiary-has-children"
-                label="Has Child Subsidiary"
-                value={draft.hasChildSubsidiary}
-                onChange={(hasChildSubsidiary) =>
-                  setDraft((current) => ({ ...current, hasChildSubsidiary }))
-                }
-                variant="switch"
-              />
-            </Box>
           </FieldGrid>
         </FormSection>
       </Stack>

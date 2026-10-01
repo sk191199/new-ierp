@@ -10,6 +10,20 @@ export interface SubsidiaryRecord {
   legalName: string;
   parentSubsidiaryId: string;
   currency: string;
+  isChildSubsidiary?: boolean;
+  inactive?: boolean;
+  website?: string;
+  documentNumberPrefix?: string;
+  emailAddress?: string;
+  vatRegistrationNo?: string;
+  taxReferenceNo?: string;
+  organizationIdType?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  addressCountry?: string;
 }
 
 export const subsidiaryMockData: SubsidiaryRecord[] = [
