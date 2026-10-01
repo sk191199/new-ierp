@@ -405,7 +405,7 @@ Leads stay a **hybrid/core screen** with a fixed worklist and form. They are not
 | Auth | `redux/features/auth/authSlice.ts` | `configurations/api/authApi.ts` |
 | Dashboard | `pages/Dashboard/dashboardApi.ts` | `pages/Dashboard/dashboard.mock.ts` |
 | Leads | `pages/CRM/Leads/leadsApi.ts` | `pages/CRM/Leads/leads.mock.ts` |
-| Metadata | `components/metadata/metadataApi.ts` | `pages/Masters/customers.metadata.mock.ts` |
+| Metadata | `components/metadata/metadataApi.ts` | `pages/Masters/Customer/customers.metadata.mock.ts` |
 
 Mock list endpoints still apply search, sort, pagination, and status filters so the table contract is real.
 
