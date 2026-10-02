@@ -12,6 +12,7 @@ import {
   Chip,
   IconButton,
   LinearProgress,
+  Link,
   Stack,
   Tooltip,
   Typography,
@@ -190,11 +191,27 @@ const getLeadConfidenceColor = (status: string): string => {
         size: 116,
         minSize: 104,
         cell: ({ row, getValue }) => (
-          <Typography variant="body2" sx={{ fontWeight: 800 }}>
+          <Link
+            component="button"
+            type="button"
+            onClick={() => navigate(ROUTES.crm.leadView(row.original.id))}
+            sx={{
+              border: 0,
+              p: 0,
+              bgcolor: "transparent",
+              fontSize: "12px",
+              lineHeight: 1.3,
+              fontWeight: 600,
+              color: "primary.main",
+              cursor: "pointer",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
             {row.original.isBackendLead
               ? String(getValue())
               : formatLeadDisplayId(String(getValue()))}
-          </Typography>
+          </Link>
         ),
       },
       {
@@ -203,7 +220,16 @@ const getLeadConfidenceColor = (status: string): string => {
         size: 132,
         minSize: 92,
         cell: ({ getValue }) => (
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          <Typography
+            sx={{
+              fontSize: "13px",
+              lineHeight: 1.3,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {String(getValue())}
           </Typography>
         ),
@@ -213,14 +239,22 @@ const getLeadConfidenceColor = (status: string): string => {
         header: "Company",
         size: 142,
         minSize: 100,
-        cell: ({ getValue }) => String(getValue()),
+        cell: ({ getValue }) => (
+          <Typography sx={{ fontSize: "12px", lineHeight: 1.3, fontWeight: 500 }}>
+            {String(getValue())}
+          </Typography>
+        ),
       },
       {
         accessorKey: "leadSource",
         header: "Lead Source",
         size: 100,
         minSize: 84,
-        cell: ({ getValue }) => String(getValue()),
+        cell: ({ getValue }) => (
+          <Typography sx={{ fontSize: "12px", lineHeight: 1.3, fontWeight: 500 }}>
+            {String(getValue())}
+          </Typography>
+        ),
       },
       {
         accessorKey: "status",
@@ -235,7 +269,7 @@ const getLeadConfidenceColor = (status: string): string => {
               size="small"
               sx={{
                 fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-                fontSize: "14px",
+                fontSize: "10px",
                 lineHeight: "22px",
                 letterSpacing: "normal",
               }}
@@ -309,7 +343,7 @@ const getLeadConfidenceColor = (status: string): string => {
         ),
       },
     ],
-    [announceAction],
+    [announceAction, navigate],
   );
 
   return (

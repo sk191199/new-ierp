@@ -181,10 +181,22 @@ export const OpportunitiesPage = () => {
         header: "Opportunity ID",
         size: 160,
         minSize: 148,
-        cell: ({ getValue }) => (
-          <Typography sx={{ fontSize: "12px", lineHeight: 1.3, fontWeight: 600 }}>
+        cell: ({ row, getValue }) => (
+          <Link
+            component={RouterLink}
+            to={ROUTES.crm.opportunityView(row.original.id)}
+            sx={{
+              fontSize: "12px",
+              lineHeight: 1.3,
+              fontWeight: 600,
+              color: "primary.main",
+              cursor: "pointer",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
             {String(getValue())}
-          </Typography>
+          </Link>
         ),
       },
       {
